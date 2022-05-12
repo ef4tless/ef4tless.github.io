@@ -104,8 +104,6 @@ flush() {
 deploy() {
   git config --global user.name "GitHub Actions"
   git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-  git remote rm origin
-  git remote add origin git@github.com:ef4tless/ef4tless.github.io.git
 
 
   git update-ref -d HEAD
