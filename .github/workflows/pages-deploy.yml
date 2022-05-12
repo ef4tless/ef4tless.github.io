@@ -26,6 +26,11 @@ jobs:
           ruby-version: 2.7
           bundler-cache: true
 
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          
       - name: Deploy
         run: bash tools/deploy.sh
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+      
