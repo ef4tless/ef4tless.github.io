@@ -26,7 +26,6 @@ title: E4L4                          # the main title
 tagline: 救赎   # it will display as the sub-title
 
 description: >-                        # used by seo meta and the atom feed
-  
 
 # fill in the protocol & hostname for your site, e.g., 'https://username.github.io'
 url: 'https://blog.e4l4.com/'

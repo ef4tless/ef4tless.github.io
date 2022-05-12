@@ -4,5 +4,23 @@ icon: fas fa-info-circle
 order: 4
 ---
 
-> Add Markdown syntax content to file `_tabs/about.md`{: .filepath } and it will show up on this page.
-{: .prompt-tip }
+西南某大学大三在读，pwn手，考研
+
+> 联系方式：QQ 963697159
+{: .prompt-info }
+
+## 一些话
+
+人无常运，不可因此迁就。
+
+大二的时候接触ctf，因为前辈选择了pwn方向，从0到1很难。
+
+越过以后总会觉得以前耽误了很多时间，浪费了很多时间。眼界太小，和同龄人也总有差距。
+
+一个人大量的时间独自做一件事，总会怀疑自己，矢志不移也很难。
+
+最可怕的是自我满意。
+
+不要沉浸在自己的世界里，改变自己的交际面才能真正的提升自己。
+
+道阻且长，希望你能找到志同道合的伙伴，一起努力
