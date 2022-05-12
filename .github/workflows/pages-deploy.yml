@@ -34,6 +34,4 @@ jobs:
 
       - name: Deploy
         run: bash tools/deploy.sh
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       
