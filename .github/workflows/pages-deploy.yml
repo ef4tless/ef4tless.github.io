@@ -19,6 +19,7 @@ jobs:
         with:
           fetch-depth: 0  # for posts's lastmod
           token: ${{ secrets.GITHUB_TOKEN }}
+          
   
 
       - name: Setup Ruby
