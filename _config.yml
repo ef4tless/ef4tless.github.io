@@ -16,23 +16,23 @@ lang: zh-CN
 prefer_datetime_locale:
 
 # Change to your timezone › http://www.timezoneconverter.com/cgi-bin/findzone/findzone
-timezone:
+timezone: Asia/Shanghai
 
 # jekyll-seo-tag settings › https://github.com/jekyll/jekyll-seo-tag/blob/master/docs/usage.md
 # ↓ --------------------------
 
 title: E4L4                          # the main title
 
-tagline: LIFE IS FUCK MOIVE   # it will display as the sub-title
+tagline: 救赎   # it will display as the sub-title
 
 description: >-                        # used by seo meta and the atom feed
-  A minimal, responsive, and powerful Jekyll theme for presenting professional writing.
+  
 
 # fill in the protocol & hostname for your site, e.g., 'https://username.github.io'
-url: 'https://ef4tless.github.io/'
+url: 'https://blog.e4l4.com/'
 
 github:
-  username: github_username             # change to your github username
+  username: ef4tless             # change to your github username
 
 twitter:
   username: twitter_username            # change to your twitter username
@@ -40,12 +40,12 @@ twitter:
 social:
   # Change to your full name.
   # It will be displayed as the default author of the posts and the copyright owner in the Footer
-  name: your_full_name
-  email: example@doamin.com             # change to your email address
+  name: e4l4
+  email: 963697159@qq.com             # change to your email address
   links:
     # The first element serves as the copyright owner's link
     - https://twitter.com/username      # change to your twitter homepage
-    - https://github.com/username       # change to your github homepage
+    - https://github.com/ef4tless       # change to your github homepage
     # Uncomment below to add more social links
     # - https://www.facebook.com/username
     # - https://www.linkedin.com/in/username
@@ -83,7 +83,7 @@ theme_mode:   # [light|dark]
 img_cdn:
 
 # the avatar on sidebar, support local or CORS resources
-avatar:
+avatar: https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/QQ图片20220512121713.jpg
 
 # boolean type, the global switch for ToC in posts.
 toc: true
