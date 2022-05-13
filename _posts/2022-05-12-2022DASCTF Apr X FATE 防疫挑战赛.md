@@ -7,7 +7,7 @@ permalink:
 pin: false
 ---
 
-这次本来musl能做出来的，脑子抽抽了都泄露堆地址了，泄露libc还卡半天
+这次本来musl能做出来的，脑子抽抽了都泄露堆地址了，泄露libc还卡半天。
 
 ## storage(musl1.2.2/堆溢出)
 
