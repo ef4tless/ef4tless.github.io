@@ -32,7 +32,7 @@ seccomp通常有白名单和黑名单2种
 
 获取shell有两种方式：
 
-1.execute 520 system call or x32abi (syscall(0x40000000 | sys_number, arg1, arg2, ...))
+1.execute 520 system call or x32abi (syscall(0x40000000 \| sys_number, arg1, arg2, ...))
 
 2.switch the mode from 64bit to 32bit and execute 32bit shellcode（未验证arch）
 
