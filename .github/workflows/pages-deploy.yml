@@ -17,10 +17,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          submodules: true 
+          submodules: true
           fetch-depth: 0  # for posts's lastmod
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
