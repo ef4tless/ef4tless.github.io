@@ -112,7 +112,7 @@ assets:
     enabled: true     # boolean, keep empty means false
     # specify the Jekyll environment, empty means both
     # only works if `assets.self_host.enabled` is 'true'
-    env: development          # [development|production]
+    env:          # [development|production]
 
 paginate: 10
 
