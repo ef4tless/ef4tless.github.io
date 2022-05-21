@@ -1,31 +1,23 @@
-title GITpush
-color 16
-
-
-echo 开始提交代码到本地仓库
+@echo off
+ 
+title GIT一键提交
+color 3
 echo 当前目录是：%cd%
-
-echo 开始添加变动
-echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-git add -A .
-echo 执行结束！
-echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 echo;
-echo 提交变动到本地仓库
-echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-set /p declation=输入修改:
+ 
+echo 开始添加变更：git add .
+git add .
+echo;
+ 
+set /p declation=输入提交的commit信息:
 git commit -m "%declation%"
-echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 echo;
-echo 将变动状况提交到远程git服务器
-echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-git push origin master
-echo ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+ 
+echo 将变更情况提交到远程主分支：git push origin master
+git push -u origin main
 echo;
-echo 批处理执行完毕！
+ 
+echo 执行完毕！
 echo;
-
+ 
 pause
