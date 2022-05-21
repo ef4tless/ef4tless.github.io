@@ -119,17 +119,17 @@ deploy() {
 main() {
   init
   build
-  test
+  # test
   # resume_site_dir
 
   if $_opt_dry_run; then
     exit 0
   fi
 
-  setup_gh
-  backup
-  flush
-  deploy
+  # setup_gh
+  # backup
+  # flush
+  # deploy
 }
 
 while (($#)); do
