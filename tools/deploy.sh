@@ -73,12 +73,11 @@ resume_site_dir() {
 }
 
 setup_gh() {
-  git stash
   if [[ -z $(git branch -av | grep "$PAGES_BRANCH") ]]; then
     _no_pages_branch=true
     git checkout -b "$PAGES_BRANCH"
   else
-    git checkout "$PAGES_BRANCH"
+    git checkout --force "$PAGES_BRANCH"
   fi
 }
 
