@@ -126,7 +126,7 @@ main() {
     exit 0
   fi
 
-  # setup_gh
+  setup_gh
   # backup
   # flush
   # deploy
