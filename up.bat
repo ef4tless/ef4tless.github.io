@@ -13,7 +13,7 @@ git commit -m "%declation%"
 echo;
  
 echo 将变更情况提交到远程主分支：git push origin main
-git push -u origin main
+git push -f -u origin main
 echo;
  
 echo 执行完毕！
