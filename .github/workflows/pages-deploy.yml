@@ -17,7 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:        
-          fetch-depth: 0  # for posts's lastmod
           token: ${{ secrets.GITHUB_TOKEN }}
           submodules: true
 
