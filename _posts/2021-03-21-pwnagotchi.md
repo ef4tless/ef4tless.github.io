@@ -63,7 +63,7 @@ pin: false
   
   ![6](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/f5aee89f27db2.png)
 
-  能不能跑出来完全看字典和算力了，hashcat具体使用方法可以自行搜索教程
+  能不能跑出来完全看字典和算力了，hashcat具体使用方法可以自行搜索教程。
 
 ## 美化！
 
