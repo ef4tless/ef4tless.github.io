@@ -110,7 +110,7 @@ deploy() {
   git commit -m "[Automation] Site update No.${GITHUB_RUN_NUMBER}"
 
   if $_no_pages_branch; then
-    git push -u origin "$PAGES_BRANCH" -f
+    git push -u origin "$PAGES_BRANCH"
   else
     git push -f
   fi
@@ -120,7 +120,7 @@ main() {
   init
   build
   test
-  resume_site_dir
+  # resume_site_dir
 
   if $_opt_dry_run; then
     exit 0
