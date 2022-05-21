@@ -17,7 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:        
-          submodules: false
+          submodules: true
           fetch-depth: 0  # for posts's lastmod
           token: ${{ secrets.GITHUB_TOKEN }}
           
@@ -27,8 +27,6 @@ jobs:
         with:
           ruby-version: 2.7
           bundler-cache: true
-
-          
 
       - name: Deploy
         run: bash tools/deploy.sh
