@@ -6,6 +6,8 @@ order: 4
 
 西南某大学大三在读，pwn手，考研，什么都不会
 
+Resume:<https://blog.e4l4.com/online-resume/>
+
 > 联系方式：QQ 963697159
 {: .prompt-info }
 
