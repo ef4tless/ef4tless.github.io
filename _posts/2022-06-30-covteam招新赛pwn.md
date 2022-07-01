@@ -1,6 +1,6 @@
 ---
-title: 2022ACTF pwn wp
-date: 2022-06-25 16:54:59 +0800
+title: covteamctf pwn wp
+date: 2022-07-01 16:54:59 +0800
 categories: [ctf比赛]
 tags: [pwn, ctf]
 permalink: 
