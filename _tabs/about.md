@@ -4,7 +4,7 @@ icon: fas fa-info-circle
 order: 5
 ---
 
-西南某大学大三在读，pwn手，考研，什么都不会
+西南某大学大三在读，只会做pwn题，考研
 
 Resume:<https://blog.e4l4.com/online-resume/>
 
@@ -13,10 +13,4 @@ Resume:<https://blog.e4l4.com/online-resume/>
 
 ## 一些话
 
-2021年一月接触ctf，选择了pwn方向，从0到1很难。
-
-自己没有基础只能慢慢的摸索，浪费了很多时间。
-
-总之打ctf不要沉浸在自己的世界里，多交朋友才能真正的提升自己。
-
-道阻且长，希望你能找到志同道合的伙伴，一起努力。
+ctf本来就不公平，你在祈求些什么？
