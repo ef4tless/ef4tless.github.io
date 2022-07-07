@@ -1,9 +1,9 @@
 ---
 title: 2022covteamctf pwn wp
-date: 2022-07-01 16:54:59 +0800
+date: 2022-07-07 17:54:59 +0800
 categories: [ctf比赛]
 tags: [pwn, ctf]
-permalink: 
+permalink:
 pin: false
 ---
 
