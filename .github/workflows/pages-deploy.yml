@@ -45,6 +45,11 @@ jobs:
           ruby-version: 3
           bundler-cache: true
 
+      - name: Modify en.yml File
+        run: |
+          bundle info --path jekyll-theme-chirpy
+
+
       - name: Build site
         run: bundle exec jekyll b -d "_site${{ steps.pages.outputs.base_path }}"
         env:
