@@ -45,7 +45,7 @@ jobs:
           ruby-version: 3
           bundler-cache: true
 
-      - name: Modify en.yml File
+      - name: Modify zh-CN.yml File
         run: |
           sed -i '42d' /home/runner/work/ef4tless.github.io/ef4tless.github.io/vendor/bundle/ruby/3.2.0/gems/jekyll-theme-chirpy-6.2.3/_data/locales/zh-CN.yml
 
