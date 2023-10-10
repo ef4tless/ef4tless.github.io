@@ -1,8 +1,44 @@
 ---
-# the default layout is 'page'
+title: About
 icon: fas fa-info-circle
-order: 4
+order: 5
 ---
 
-> Add Markdown syntax content to file `_tabs/about.md`{: .filepath } and it will show up on this page.
-{: .prompt-tip }
+~~`XHU`信安大四在读~~
+
+~~`covteam`校队成员~~
+
+`Polaris`星盟战队成员 
+
+
+
+目前在上海螣龙安科~~实习~~二进制安全研究员
+
+~~一边狂赶毕设，毕不了业了~~😭，一边学习漏洞挖掘
+
+
++ 喜欢战斗番和画画，~~不是二次元~~
++ 喜欢三次元和酷的东西，黑色爱好者
++ 百分之70感性百分之30理性，认为选择大于努力，~~理想主义者~~
+
+欢迎师傅们找我讨论pwn题
+> 联系方式：QQ 963697159
+{: .prompt-info }
+
+Resume:<https://blog.e4l4.com/online-resume/>
+
+
+
+## 经历
+
+2022年3月13日，加入星盟安全战队玄机分队
+
+......
+
+2023年4月1日，在螣龙安科入职二进制安全实习生
+
+2023年8月10日，在螣龙安科入职二进制安全研究员
+
+## 一些话
+
+愿‌‎‍‍‍‍‍‏‌‌‌‍‎‍你像宇宙一般持续闪耀
