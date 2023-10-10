@@ -47,7 +47,6 @@ jobs:
 
       - name: Modify en.yml File
         run: |
-          bundle info --path jekyll-theme-chirpy
           sed -i '43d' /home/runner/work/ef4tless.github.io/ef4tless.github.io/vendor/bundle/ruby/3.2.0/gems/jekyll-theme-chirpy-6.2.3/_data/locales/en.yml
 
       - name: Build site
