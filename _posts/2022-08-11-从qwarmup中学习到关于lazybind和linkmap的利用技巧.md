@@ -5,6 +5,7 @@ categories: [ctf比赛]
 tags: [pwn, ctf]
 permalink: /posts/id=41/
 pin: false
+published:
 ---
 
 ## 适用场景

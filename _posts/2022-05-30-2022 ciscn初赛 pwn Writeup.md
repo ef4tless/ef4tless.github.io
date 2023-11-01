@@ -5,6 +5,7 @@ categories: [ctf比赛]
 tags: [pwn, ctf]
 permalink: /posts/id=24/
 pin: false
+published:
 ---
 
 ![image-20220530115403566](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220530115403566.png)

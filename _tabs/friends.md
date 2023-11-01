@@ -30,7 +30,17 @@ Ayaka:[https://blog.csdn.net/weixin_46483787?type=blog](https://blog.csdn.net/we
 
 chuj:[https://cjovi.icu/](https://cjovi.icu/)
 
+CataLpa:https://wzt.ac.cn/
+
+cq674350529：:https://cq674350529.github.io/
+
+boschko:https://boschko.ca/
+
 三丰:[https://www.sfnote.com/](https://www.sfnote.com/)
+
+l1s00t:https://lst-oss.github.io/
+
+yhellow:https://ywhkkx.github.io/
 
 Tokameine:[https://tokameine.top/](https://tokameine.top/)
 
