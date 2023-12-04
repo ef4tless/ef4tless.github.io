@@ -47,7 +47,6 @@ jobs:
 
       - name: Modify zh-CN.yml File
         run: |
-          ls -la /home/runner/work/ef4tless.github.io/ef4tless.github.io/vendor/bundle/ruby/3.2.0/gems/
           sed -n '42p; 42d' /home/runner/work/ef4tless.github.io/ef4tless.github.io/vendor/bundle/ruby/3.2.0/gems/jekyll-theme-chirpy-6.3.1/_data/locales/zh-CN.yml
 
       - name: Build site
