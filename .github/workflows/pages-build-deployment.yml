@@ -1,0 +1,10 @@
+name: "pages-build-deployment"
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - .gitignore
+      - README.md
+      - LICENSE
