@@ -12,6 +12,10 @@ xuanxuan:[https://xuanxuanblingbling.github.io/](https://xuanxuanblingbling.gith
 
 roderick:[https://roderickchan.github.io/](https://roderickchan.github.io/)
 
+bsauce:[https://bsauce.github.io/](https://bsauce.github.io/)
+
+E99p1ant:[https://github.red/](https://github.red/)
+
 fmyy:[https://fmyy.pro/](https://fmyy.pro/)
 
 wjh:[https://blog.wjhwjhn.com/](https://blog.wjhwjhn.com/)
@@ -48,10 +52,15 @@ z1r0:[https://www.z1r0.top/](https://www.z1r0.top/)
 
 peiqi:[http://www.peiqi.tech/](http://www.peiqi.tech/)
 
-pursue:[https://rmrfsad.github.io/](https://rmrfsad.github.io/)
+pursue:[https://rmrfsad.gitee.io/](https://rmrfsad.gitee.io/)
 
-SODECXDE:[https://blog.csdn.net/weixin_61283545?spm=1019.2139.3001.5343](https://blog.csdn.net/weixin_61283545?spm=1019.2139.3001.5343)
+SODECXDE:[https://sohaah.github.io/](https://sohaah.github.io/)
 
 kycloud:[https://www.mvipcloud.xyz/](https://www.mvipcloud.xyz/)
 
-MEssa_Rabbit:[https://0xme3.github.io/](https://0xme3.github.io/)
+blacktea:[http://150.158.21.50/](http://150.158.21.50/)
+
+xshhc:[https://home.cnblogs.com/u/xshhc/](https://home.cnblogs.com/u/xshhc/)
+
+
+
