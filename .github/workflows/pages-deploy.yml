@@ -47,7 +47,8 @@ jobs:
 
       - name: Modify zh-CN.yml File
         run: |
-          cat /home/runner/work/ef4tless.github.io/ef4tless.github.io/vendor/bundle/ruby/3.2.2/gems/jekyll-theme-chirpy-6.4.1/_data/locales/zh-CN.yml
+          apt install tree
+          tree /home/runner/work/ef4tless.github.io/ef4tless.github.io/vendor/bundle/ruby/3.2.2/
           sed -n '42p; 42d' /home/runner/work/ef4tless.github.io/ef4tless.github.io/vendor/bundle/ruby/3.2.2/gems/jekyll-theme-chirpy-6.4.1/_data/locales/zh-CN.yml
 
       - name: Build site
