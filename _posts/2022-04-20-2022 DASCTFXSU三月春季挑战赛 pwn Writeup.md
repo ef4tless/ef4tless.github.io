@@ -1,11 +1,13 @@
 ---
 title: 2022 DASCTFXSU三月春季挑战赛 pwn Writeup
 date: 2022-04-20 22:46:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=12/
 pin: false
-published:
 ---
 ## checkin(ret2dl)
 

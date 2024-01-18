@@ -1,11 +1,13 @@
 ---
 title: 2022 ACTF 部分pwn Writeup
 date: 2022-06-25 16:54:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=27/
 pin: false
-published:
 ---
 
 ## b64echo

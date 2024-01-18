@@ -1,11 +1,13 @@
 ---
 title: 2022 DASCTFAprXFATE防疫挑战赛 pwn 复现
 date: 2022-05-1 23:52:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=18/
 pin: false
-published:
 ---
 
 这次本来musl能做出来的，脑子抽抽了都泄露堆地址了，泄露libc还卡半天。

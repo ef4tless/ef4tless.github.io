@@ -1,11 +1,13 @@
 ---
 title: 从qwarmup中学习到关于lazybind和linkmap的利用技巧
 date: 2022-08-12 6:54:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=41/
 pin: false
-published:
 ---
 
 ## 适用场景

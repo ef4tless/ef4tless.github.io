@@ -1,11 +1,13 @@
 ---
 title: sandboxorw总结
 date: 2022-04-11 22:54:59 +0800
-categories: [漏洞利用总结]
-tags: [pwn, ctf]
+categories:
+  - 漏洞利用总结
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=10/
 pin: false
-published:
 ---
 
 ## 沙盒绕过

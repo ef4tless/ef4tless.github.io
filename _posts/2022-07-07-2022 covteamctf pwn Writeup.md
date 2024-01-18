@@ -1,11 +1,13 @@
 ---
 title: 2022 covteamctf pwn Writeup
 date: 2022-07-07 17:54:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=29/
 pin: false
-published:
 ---
 
 学校选拔赛的Writeup

@@ -1,11 +1,13 @@
 ---
 title: 2021 buuctfXDASCTF pwn 复现
 date: 2022-03-30 22:54:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=6/
 pin: false
-published:
 ---
 ## ticket
 

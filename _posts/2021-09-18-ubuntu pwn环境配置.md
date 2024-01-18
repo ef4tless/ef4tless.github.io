@@ -1,11 +1,13 @@
 ---
 title: ubuntu pwn 环境配置
 date: 2021-09-18 12:44:59 +0800
-categories: [ctf刷题]
-tags: [pwn, ctf]
+categories:
+  - ctf刷题
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=4/
 pin: false
-published:
 ---
 
 

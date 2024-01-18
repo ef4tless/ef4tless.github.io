@@ -1,11 +1,13 @@
 ---
 title: 2022 NSSrand4 pwn Writeup
 date: 2022-08-03 23:54:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=40/
 pin: false
-published:
 ---
 
 ## 百密一疏(限制字符可见shellcode)

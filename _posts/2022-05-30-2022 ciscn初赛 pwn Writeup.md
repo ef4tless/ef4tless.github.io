@@ -1,11 +1,13 @@
 ---
 title: 2022 ciscn初赛 pwn Writeup
 date: 2022-05-30 11:52:32 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=24/
 pin: false
-published:
 ---
 
 ![image-20220530115403566](https://e4l4pic.oss-cn-beijing.aliyuncs.com/img/image-20220530115403566.png)
