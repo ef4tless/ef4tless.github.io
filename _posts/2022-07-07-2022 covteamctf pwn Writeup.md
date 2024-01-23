@@ -8,6 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=29/
 pin: false
+published:
 ---
 
 学校选拔赛的Writeup

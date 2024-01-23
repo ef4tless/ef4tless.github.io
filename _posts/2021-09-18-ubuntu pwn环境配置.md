@@ -8,6 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=4/
 pin: false
+published:
 ---
 
 

@@ -1,8 +1,11 @@
 ---
 title: 2022 ciscn西南分区赛 pwn Writeup
 date: 2022-07-11 18:54:59 +0800
-categories: [ctf比赛]
-tags: [pwn, ctf]
+categories:
+  - ctf比赛
+tags:
+  - pwn
+  - ctf
 permalink: /posts/id=32/
 pin: false
 published:

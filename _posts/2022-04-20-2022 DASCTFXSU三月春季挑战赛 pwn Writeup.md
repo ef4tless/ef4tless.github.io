@@ -8,6 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=12/
 pin: false
+published:
 ---
 ## checkin(ret2dl)
 
