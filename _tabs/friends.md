@@ -24,6 +24,10 @@ cnitlrt:[https://cnitlrt.github.io/](https://cnitlrt.github.io/)
 
 joe1sn:[https://www.joe1sn.top/](https://www.joe1sn.top/)
 
+k0mor3b1:[https://k0mor3b1.github.io/](https://k0mor3b1.github.io/)
+
+archerber:[https://archerber.github.io/](https://archerber.github.io/)
+
 影二:[https://kagehutatsu.com/](https://kagehutatsu.com/)
 
 夜悠:[https://nightu.darkflow.top/](https://nightu.darkflow.top/)
