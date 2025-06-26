@@ -153,7 +153,7 @@ gem sources --remove https://rubygems.org/
 gem sources --add https://mirrors.aliyun.com/rubygems/
 
 #seccomp-tools
-sudo gem install seccomp-tools
+sudo gem install seccomp-tools --verbose
 
 #patchelf
 sudo apt-get -y install patchelf

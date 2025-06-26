@@ -16,14 +16,15 @@ timezone: Asia/Shanghai
 
 title: E4L4 # the main title
 
-tagline: I'm hustler # it will display as the sub-title
+tagline: 夷丰巷的少年永远占上风 # it will display as the sub-title
 
 description: >- # used by seo meta and the atom feed
 
 
 # Fill in the protocol & hostname for your site.
 # e.g. 'https://username.github.io', note that it does not end with a '/'.
-url: "https://blog.e4l4.com/"
+
+url: "http://blog.e4l4.com/"
 
 github:
   username: ef4tless # change to your github username
@@ -73,7 +74,7 @@ theme_mode: light # [light|dark]
 img_cdn:
 
 # the avatar on sidebar, support local or CORS resources
-avatar: https://e4l4pic.oss-cn-beijing.aliyuncs.com/QQ%E5%9B%BE%E7%89%8720230329204828.jpg
+avatar: https://e4l4pic.oss-cn-beijing.aliyuncs.com/headcut.png
 
 # boolean type, the global switch for TOC in posts.
 toc: true
