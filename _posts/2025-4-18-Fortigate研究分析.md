@@ -193,7 +193,7 @@ https://blog.lexfo.fr/xortigate-cve-2023-27997.html
 https://bestwing.me/CVE-2022-42475-FortiGate-SSLVPN-HeapOverflow.html
 https://wzt.ac.cn/2022/12/15/CVE-2022-42475/#%E5%88%A9%E7%94%A8%E5%88%86%E6%9E%90
 https://ioo0s.art/2023/02/09/CVE-2022-42475/#%E6%9E%84%E9%80%A0%E6%89%A7%E8%A1%8C-rop
-http://blog.e4l4.com/posts/id=58/
+https://ef4tless.github.io/posts/id=58/
 CVE-2023-27997 FortiGate SSLVPN 堆溢出漏洞分析与利用 
 https://www.cnblogs.com/L1nyun/articles/18421524
 CVE-2022-42475 FortiGate SSLVPN 堆溢出漏洞分析与利用(奇安信攻防社区)

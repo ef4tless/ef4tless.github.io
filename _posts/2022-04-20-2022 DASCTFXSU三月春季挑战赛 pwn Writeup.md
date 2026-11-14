@@ -12,7 +12,7 @@ published:
 ---
 ## checkin(ret2dl)
 
-这道题在[ret2dl利用总结](https://blog.e4l4.com/posts/ret2dl总结/)这篇文章里做了详细分析，这里贴一下2种EXP
+这道题在[ret2dl利用总结](https://ef4tless.github.io/posts/ret2dl总结/)这篇文章里做了详细分析，这里贴一下2种EXP
 
 ```python
 from pwn import *
