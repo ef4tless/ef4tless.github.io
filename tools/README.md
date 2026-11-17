@@ -32,6 +32,8 @@ NOTION_DATABASE_ID=你的-Blog-数据库-ID
 
 当前工作区已经生成了带 Blog 数据库 ID 的 `.env.notion`，只需填写 Token。该文件已被 `.gitignore` 忽略。**不要把真实 Token 提交到仓库或粘贴到聊天中。**
 
+如果 macOS 上的 Python 报 `CERTIFICATE_VERIFY_FAILED`，可运行 `python3 -m pip install certifi` 安装根证书；脚本会自动使用 certifi，不会关闭证书验证。
+
 ### 2. 检查同步计划
 
 ```bash

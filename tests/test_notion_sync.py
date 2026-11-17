@@ -110,7 +110,7 @@ class NotionSyncTests(unittest.TestCase):
         self.assertIn(f'notion_id: "{self.page_id}"', rendered)
         self.assertIn("Hello **Notion**", rendered)
         self.assertIn("## 正文", rendered)
-        self.assertIn("```python\nprint('ok')\n```", rendered)
+        self.assertIn("- 项目\n\n```python\nprint('ok')\n```", rendered)
         self.assertIn("| 名称 | 值 |", rendered)
         self.assertEqual(downloads, [image_url])
         self.assertEqual(len(plans[0].assets), 1)

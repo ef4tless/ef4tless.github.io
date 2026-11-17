@@ -3,7 +3,9 @@
 
 Requires a Notion internal integration token with read access to the database.
 Credentials are read from NOTION_TOKEN or the git-ignored .env.notion file.
-Only Python's standard library is used; downloaded files are never executed.
+The API client uses Python's standard library, with optional certifi CA roots
+for Python installations that do not have a default certificate bundle.
+Downloaded files are never executed.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import ssl
 import sys
 import tempfile
 import time
@@ -41,6 +44,15 @@ MAX_IMAGE_BYTES = 20 * 1024 * 1024
 MAX_TOTAL_DOWNLOAD_BYTES = 200 * 1024 * 1024
 MAX_BLOCK_DEPTH = 20
 READY_STATUSES = ("待发布", "已发布")
+
+# Python.org builds on macOS may not have a default CA bundle configured.
+# Use certifi when available; certificate verification always remains enabled.
+try:
+    import certifi
+except ImportError:
+    SSL_CONTEXT = ssl.create_default_context()
+else:
+    SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 
 def plain_text(items: list[dict] | None) -> str:
@@ -136,7 +148,7 @@ class NotionClient:
         )
         for attempt in range(3):
             try:
-                with urlopen(request, timeout=self.timeout) as response:
+                with urlopen(request, timeout=self.timeout, context=SSL_CONTEXT) as response:
                     return json.load(response)
             except HTTPError as exc:
                 detail = exc.read(4096).decode("utf-8", errors="replace")
@@ -255,7 +267,7 @@ class NotionRenderer:
     def render_lines(self, blocks: list[dict], depth: int = 0) -> list[str]:
         lines: list[str] = []
         indent = "  " * depth
-        for block in blocks:
+        for index, block in enumerate(blocks):
             block_type = block.get("type")
             data = block.get(block_type, {})
             children = block.get("_children", [])
@@ -275,6 +287,13 @@ class NotionRenderer:
                 lines.append(f"{indent}{marker} {rich_text(data.get('rich_text'))}")
                 if children:
                     lines.extend(self.render_lines(children, depth + 1))
+                next_is_list = index + 1 < len(blocks) and blocks[index + 1].get("type") in (
+                    "bulleted_list_item",
+                    "numbered_list_item",
+                    "to_do",
+                )
+                if not next_is_list:
+                    lines.append("")
             elif block_type in ("quote", "callout", "toggle"):
                 text = rich_text(data.get("rich_text"))
                 if block_type == "callout":
@@ -441,7 +460,7 @@ def prepare_sync(client: NotionClient, repo_root: Path) -> list[SyncPlan]:
 def download_image(url: str, destination: Path) -> None:
     request = Request(url, headers={"User-Agent": "ef4tless-notion-sync/1.0"})
     try:
-        with urlopen(request, timeout=45) as response:
+        with urlopen(request, timeout=45, context=SSL_CONTEXT) as response:
             length = response.headers.get("Content-Length")
             if length and int(length) > MAX_IMAGE_BYTES:
                 raise NotionImportError(f"图片超过 20 MiB：{url}")
