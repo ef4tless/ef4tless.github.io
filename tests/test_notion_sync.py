@@ -200,7 +200,16 @@ class NotionSyncTests(unittest.TestCase):
         self.assertEqual(plans, [])
         self.assertEqual(keep.read_text(encoding="utf-8"), "keep")
 
-    def test_database_query_filters_ready_and_published(self):
+    def test_new_draft_is_skipped_without_fetching_blocks(self):
+        draft_page = page(self.page_id, status="草稿")
+        client = FakeClient([draft_page], {})
+
+        plans = notion_sync.sync_articles(client, self.repo)
+
+        self.assertEqual(plans, [])
+        self.assertEqual(list((self.repo / "_posts").iterdir()), [])
+
+    def test_database_query_reads_all_article_statuses(self):
         client = notion_sync.NotionClient("token-not-recorded", self.page_id)
         calls = []
 
@@ -211,10 +220,9 @@ class NotionSyncTests(unittest.TestCase):
         client._request = fake_request
         self.assertEqual(client.query_articles(), [])
         payload = calls[0][1]
-        statuses = [item["status"]["equals"] for item in payload["filter"]["or"]]
-        self.assertEqual(statuses, ["待发布", "已发布"])
+        self.assertNotIn("filter", payload)
 
-    def test_prune_deletes_only_api_confirmed_archived_posts(self):
+    def test_default_sync_deletes_only_confirmed_archived_and_draft_posts(self):
         archived_id = self.page_id
         missing_id = "41b888f9-4af3-81a2-aac4-d40d6d16dc29"
         draft_id = "41b888f9-4af3-810a-8dde-cb907aeb2aa2"
@@ -238,19 +246,20 @@ class NotionSyncTests(unittest.TestCase):
             },
         )
 
-        notion_sync.sync_articles(client, self.repo)
+        notion_sync.sync_articles(client, self.repo, prune=False)
         self.assertEqual(client.page_requests, [])
         self.assertTrue(archived.exists())
 
-        plans = notion_sync.sync_articles(client, self.repo, prune=True, dry_run=True)
-        self.assertEqual([plan.state for plan in plans], ["delete"])
-        self.assertEqual(plans[0].path, archived)
+        plans = notion_sync.sync_articles(client, self.repo, dry_run=True)
+        self.assertEqual([plan.state for plan in plans], ["delete", "delete"])
+        self.assertEqual([plan.path for plan in plans], [archived, draft])
         self.assertTrue(archived.exists())
+        self.assertTrue(draft.exists())
 
-        notion_sync.sync_articles(client, self.repo, prune=True)
+        notion_sync.sync_articles(client, self.repo)
         self.assertFalse(archived.exists())
         self.assertTrue(missing.exists())
-        self.assertTrue(draft.exists())
+        self.assertFalse(draft.exists())
         self.assertTrue(local.exists())
 
     def test_get_page_returns_none_only_for_404(self):

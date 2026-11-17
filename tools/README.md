@@ -6,10 +6,12 @@
 
 ### 同步规则
 
-- 同步 `Status` 为 **待发布** 或 **已发布** 的文章，因此后续在 Notion 修改已发布文章也可以更新。
-- **草稿不会同步**。
+- 每次运行都查询整个 Blog 数据库，而不是只查询待发布文章。
+- **待发布 / 已发布** → 新增或更新对应文章。
+- **草稿** → 新草稿跳过；已经由工具管理的本地文章会撤下。
+- **归档 / 回收站** → 删除对应的受管本地文章。
 - Notion 是这些文章的正文来源；本地生成的 Markdown 中带有 `notion_id`，用于识别文章归属。
-- 默认不自动删除本地文章，也不清理旧图片；只有显式使用 `--prune` 才会清理 API 确认删除的受管文章。
+- 其他没有 `notion_id` 的旧文章不受影响，图片不自动删除。
 - 不支持的内容块会停止整次同步，避免静默丢失正文。
 
 ### 1. 一次性配置 Notion Integration
@@ -40,7 +42,7 @@ NOTION_DATABASE_ID=你的-Blog-数据库-ID
 python3 -I tools/notion_sync.py --dry-run
 ```
 
-该命令会读取全部待同步文章、检查属性和内容块，但不写文件、不下载图片。
+该命令会读取整个数据库并预览新增、更新和删除，但不写文件、不下载图片。
 
 ### 3. 正式同步
 
@@ -67,29 +69,24 @@ git push origin main
 
 等 GitHub Actions 部署成功并检查线上页面，再将刚发布的 Notion 文章状态改为 **已发布**。
 
-### 删除 Notion 文章
+### 删除文章或改为草稿
 
-普通同步仍然只新增和更新。要同步删除操作，先查看删除候选：
-
-```bash
-python3 -I tools/notion_sync.py --dry-run --prune
-```
-
-确认输出中的 `[删除]` 条目后再执行：
+普通同步命令就会完整对账，**不需要额外的 `--prune` 参数**：
 
 ```bash
-python3 -I tools/notion_sync.py --prune
+python3 -I tools/notion_sync.py --dry-run
+python3 -I tools/notion_sync.py
 ```
 
 安全规则：
 
 - 只处理带有 `notion_id` 的本地文章；
-- 只有 Notion API 明确返回 `archived` 或 `in_trash` 才会删除；
-- 查询失败、权限丢失、404 或改为草稿都会保留并给出提示；
+- Notion API 明确返回 `archived`、`in_trash` 或当前状态为「草稿」时，才会撤下对应文章；
+- 查询失败、权限丢失或 404 都会保留并给出提示；
 - 只删除对应 Markdown，不自动删除图片，避免影响其他文章；
 - 删除后仍需 `git add .`、commit 和 push，线上页面才会更新。
 
-如果 Notion 页面已被彻底删除且 API 无法确认状态，脚本会保留本地文件；此时应手动删除对应 Markdown 后提交。
+如果某次只想新增和更新、暂时不清理任何本地文章，可以使用 `--no-prune`。如果 Notion 页面已被彻底删除且 API 无法确认状态，脚本会保留本地文件；此时应手动删除对应 Markdown 后提交。
 
 ### 首次接管已有 Markdown
 

@@ -4,7 +4,7 @@ https://ef4tless.github.io
 
 ## 从 Notion 发布
 
-配置好本地 `.env.notion` 后，直接同步全部「待发布 + 已发布」文章，草稿会跳过：
+配置好本地 `.env.notion` 后，每次完整同步 Blog 数据库：发布「待发布 + 已发布」文章，并撤下已删除或转为草稿的受管文章：
 
 ```bash
 python3 -I tools/notion_sync.py --dry-run

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Synchronize ready/published articles directly from a Notion database.
+"""Reconcile local Jekyll posts with the current Notion database state.
+
+Ready/published pages are created or updated. Managed local posts are removed
+when their Notion page becomes a draft or is confirmed archived/trashed.
+Unmanaged local posts and images are never automatically deleted.
 
 Requires a Notion internal integration token with read access to the database.
 Credentials are read from NOTION_TOKEN or the git-ignored .env.notion file.
@@ -178,15 +182,7 @@ class NotionClient:
         pages = []
         cursor = None
         while True:
-            payload = {
-                "page_size": 100,
-                "filter": {
-                    "or": [
-                        {"property": "Status", "status": {"equals": status}}
-                        for status in READY_STATUSES
-                    ]
-                },
-            }
+            payload = {"page_size": 100}
             if cursor:
                 payload["start_cursor"] = cursor
             result = self._request(f"/databases/{self.database_id}/query", payload)
@@ -444,6 +440,9 @@ def prepare_sync(client: NotionClient, repo_root: Path) -> list[SyncPlan]:
     plans = []
     seen_paths: dict[Path, str] = {}
     for page in pages:
+        status = (page.get("properties", {}).get("Status", {}).get("status") or {}).get("name")
+        if status == "草稿":
+            continue
         metadata = page_metadata(page)
         slug = str(metadata["slug"])
         post_path = repo_root / "_posts" / f"{metadata['filename_date']}-{slug}.md"
@@ -475,7 +474,7 @@ def prepare_sync(client: NotionClient, repo_root: Path) -> list[SyncPlan]:
 def find_prune_candidates(
     client: NotionClient, repo_root: Path, active_page_ids: set[str]
 ) -> tuple[list[SyncPlan], list[str]]:
-    """Find only API-confirmed archived/trashed posts; never infer deletion from absence."""
+    """Find confirmed archived/trashed/draft posts; never infer deletion from absence."""
     candidates = []
     warnings = []
     for path in sorted((repo_root / "_posts").glob("*.md")):
@@ -486,7 +485,8 @@ def find_prune_candidates(
         if page is None:
             warnings.append(f"{path.name}：Notion 页面不可访问，可能是权限变化；已保留。")
             continue
-        if page.get("archived") or page.get("in_trash"):
+        status = (page.get("properties", {}).get("Status", {}).get("status") or {}).get("name", "未知")
+        if page.get("archived") or page.get("in_trash") or status == "草稿":
             candidates.append(
                 SyncPlan(
                     page_id=page_id,
@@ -498,8 +498,7 @@ def find_prune_candidates(
                 )
             )
         else:
-            status = (page.get("properties", {}).get("Status", {}).get("status") or {}).get("name", "未知")
-            warnings.append(f"{path.name}：Notion 状态为 {status}，不是已删除；已保留。")
+            warnings.append(f"{path.name}：Notion 状态为 {status}，无法确认应删除；已保留。")
     return candidates, warnings
 
 
@@ -530,7 +529,7 @@ def sync_articles(
     *,
     dry_run: bool = False,
     force: bool = False,
-    prune: bool = False,
+    prune: bool = True,
     downloader: Callable[[str, Path], None] = download_image,
 ) -> list[SyncPlan]:
     repo_root = repo_root.resolve()
@@ -602,14 +601,15 @@ def sync_articles(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="直接同步 Notion 数据库中的「待发布 + 已发布」文章，跳过草稿。"
+        description="完整同步 Notion 数据库：发布待发布/已发布文章，撤下草稿和已删除的受管文章。"
     )
     parser.add_argument("--database-id", help="Notion 数据库 ID 或链接；也可写入 .env.notion")
     parser.add_argument("--env-file", type=Path, help="凭据文件，默认 <仓库>/.env.notion")
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1], help=argparse.SUPPRESS)
     parser.add_argument("--dry-run", action="store_true", help="只获取和检查，不写文件、不下载图片")
     parser.add_argument("--force", action="store_true", help="首次接管同路径但没有 notion_id 的本地文章")
-    parser.add_argument("--prune", action="store_true", help="删除经 Notion API 确认已归档或进入回收站的受管文章")
+    parser.add_argument("--no-prune", action="store_true", help="保留已删除或转为草稿的受管本地文章")
+    parser.add_argument("--prune", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
@@ -633,7 +633,7 @@ def main() -> int:
             raise NotionImportError("缺少 NOTION_DATABASE_ID；请填写数据库 ID 或链接。")
         client = NotionClient(token, database_id)
         plans = sync_articles(
-            client, repo_root, dry_run=args.dry_run, force=args.force, prune=args.prune
+            client, repo_root, dry_run=args.dry_run, force=args.force, prune=not args.no_prune
         )
     except (NotionImportError, OSError, UnicodeError, json.JSONDecodeError) as exc:
         print(f"同步失败：{exc}", file=sys.stderr)
@@ -645,7 +645,7 @@ def main() -> int:
     labels = {"create": "新增", "update": "更新", "unchanged": "无变化", "delete": "删除"}
     for plan in plans:
         print(f"[{labels[plan.state]}] {plan.title} → {plan.path}（图片 {len(plan.assets)}）")
-    deletion_note = "仅清理 API 确认删除的受管文章，图片保留" if args.prune else "不会自动删除本地文章"
+    deletion_note = "完整对账，图片保留" if not args.no_prune else "已禁用清理，不删除本地文章"
     print(f"共 {len(plans)} 篇；{'仅检查，未写入' if args.dry_run else '同步完成'}。{deletion_note}。")
     return 0
 
