@@ -127,6 +127,12 @@ def load_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+class NotionAPIError(NotionImportError):
+    def __init__(self, status_code: int, message: str):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 class NotionClient:
     def __init__(self, token: str, database_id: str, timeout: int = 30):
         self.token = token
@@ -157,8 +163,9 @@ class NotionClient:
                     retry_after = exc.headers.get("Retry-After")
                     time.sleep(float(retry_after) if retry_after else 2**attempt)
                     continue
-                raise NotionImportError(
-                    f"Notion API 返回 HTTP {exc.code}：{detail}"
+                raise NotionAPIError(
+                    exc.code,
+                    f"Notion API 返回 HTTP {exc.code}：{detail}",
                 ) from exc
             except URLError as exc:
                 if attempt < 2:
@@ -189,6 +196,14 @@ class NotionClient:
             cursor = result.get("next_cursor")
             if not cursor:
                 raise NotionImportError("Notion 分页响应缺少 next_cursor。")
+
+    def get_page(self, page_id: str) -> dict | None:
+        try:
+            return self._request(f"/pages/{page_id}")
+        except NotionAPIError as exc:
+            if exc.status_code == 404:
+                return None
+            raise
 
     def block_children(self, block_id: str) -> list[dict]:
         blocks = []
@@ -457,6 +472,37 @@ def prepare_sync(client: NotionClient, repo_root: Path) -> list[SyncPlan]:
     return plans
 
 
+def find_prune_candidates(
+    client: NotionClient, repo_root: Path, active_page_ids: set[str]
+) -> tuple[list[SyncPlan], list[str]]:
+    """Find only API-confirmed archived/trashed posts; never infer deletion from absence."""
+    candidates = []
+    warnings = []
+    for path in sorted((repo_root / "_posts").glob("*.md")):
+        page_id = existing_notion_id(path)
+        if not page_id or page_id in active_page_ids:
+            continue
+        page = client.get_page(page_id)
+        if page is None:
+            warnings.append(f"{path.name}：Notion 页面不可访问，可能是权限变化；已保留。")
+            continue
+        if page.get("archived") or page.get("in_trash"):
+            candidates.append(
+                SyncPlan(
+                    page_id=page_id,
+                    title=path.name,
+                    path=path,
+                    content="",
+                    assets=[],
+                    state="delete",
+                )
+            )
+        else:
+            status = (page.get("properties", {}).get("Status", {}).get("status") or {}).get("name", "未知")
+            warnings.append(f"{path.name}：Notion 状态为 {status}，不是已删除；已保留。")
+    return candidates, warnings
+
+
 def download_image(url: str, destination: Path) -> None:
     request = Request(url, headers={"User-Agent": "ef4tless-notion-sync/1.0"})
     try:
@@ -484,6 +530,7 @@ def sync_articles(
     *,
     dry_run: bool = False,
     force: bool = False,
+    prune: bool = False,
     downloader: Callable[[str, Path], None] = download_image,
 ) -> list[SyncPlan]:
     repo_root = repo_root.resolve()
@@ -507,6 +554,14 @@ def sync_articles(
             )
         else:
             plan.state = "update"
+
+    if prune:
+        deletions, warnings = find_prune_candidates(
+            client, repo_root, {plan.page_id.lower() for plan in plans}
+        )
+        for warning in warnings:
+            print(f"[保留] {warning}", file=sys.stderr)
+        plans.extend(deletions)
 
     if dry_run:
         return plans
@@ -534,6 +589,9 @@ def sync_articles(
         for plan in plans:
             if plan.state == "unchanged":
                 continue
+            if plan.state == "delete":
+                plan.path.unlink()
+                continue
             plan.path.parent.mkdir(parents=True, exist_ok=True)
             temporary = plan.path.with_name(plan.path.name + ".tmp")
             temporary.write_text(plan.content, encoding="utf-8")
@@ -551,6 +609,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1], help=argparse.SUPPRESS)
     parser.add_argument("--dry-run", action="store_true", help="只获取和检查，不写文件、不下载图片")
     parser.add_argument("--force", action="store_true", help="首次接管同路径但没有 notion_id 的本地文章")
+    parser.add_argument("--prune", action="store_true", help="删除经 Notion API 确认已归档或进入回收站的受管文章")
     return parser
 
 
@@ -573,7 +632,9 @@ def main() -> int:
         if not database_id:
             raise NotionImportError("缺少 NOTION_DATABASE_ID；请填写数据库 ID 或链接。")
         client = NotionClient(token, database_id)
-        plans = sync_articles(client, repo_root, dry_run=args.dry_run, force=args.force)
+        plans = sync_articles(
+            client, repo_root, dry_run=args.dry_run, force=args.force, prune=args.prune
+        )
     except (NotionImportError, OSError, UnicodeError, json.JSONDecodeError) as exc:
         print(f"同步失败：{exc}", file=sys.stderr)
         return 1
@@ -581,10 +642,11 @@ def main() -> int:
     if not plans:
         print("没有找到「待发布」或「已发布」文章；草稿不会同步。")
         return 0
-    labels = {"create": "新增", "update": "更新", "unchanged": "无变化"}
+    labels = {"create": "新增", "update": "更新", "unchanged": "无变化", "delete": "删除"}
     for plan in plans:
         print(f"[{labels[plan.state]}] {plan.title} → {plan.path}（图片 {len(plan.assets)}）")
-    print(f"共 {len(plans)} 篇；{'仅检查，未写入' if args.dry_run else '同步完成'}。不会自动删除本地文章。")
+    deletion_note = "仅清理 API 确认删除的受管文章，图片保留" if args.prune else "不会自动删除本地文章"
+    print(f"共 {len(plans)} 篇；{'仅检查，未写入' if args.dry_run else '同步完成'}。{deletion_note}。")
     return 0
 
 

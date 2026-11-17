@@ -58,6 +58,17 @@ class FakeClient:
         return self.trees[page_id]
 
 
+class FakePruneClient(FakeClient):
+    def __init__(self, pages, trees, page_states):
+        super().__init__(pages, trees)
+        self.page_states = page_states
+        self.page_requests = []
+
+    def get_page(self, page_id):
+        self.page_requests.append(page_id)
+        return self.page_states[page_id]
+
+
 class NotionSyncTests(unittest.TestCase):
     def setUp(self):
         self.temp_context = tempfile.TemporaryDirectory(prefix="notion-sync-test-")
@@ -202,6 +213,54 @@ class NotionSyncTests(unittest.TestCase):
         payload = calls[0][1]
         statuses = [item["status"]["equals"] for item in payload["filter"]["or"]]
         self.assertEqual(statuses, ["待发布", "已发布"])
+
+    def test_prune_deletes_only_api_confirmed_archived_posts(self):
+        archived_id = self.page_id
+        missing_id = "41b888f9-4af3-81a2-aac4-d40d6d16dc29"
+        draft_id = "41b888f9-4af3-810a-8dde-cb907aeb2aa2"
+        archived = self.repo / "_posts" / "2026-01-01-archived.md"
+        missing = self.repo / "_posts" / "2026-01-02-missing.md"
+        draft = self.repo / "_posts" / "2026-01-03-draft.md"
+        local = self.repo / "_posts" / "2026-01-04-local.md"
+        for path, page_id in ((archived, archived_id), (missing, missing_id), (draft, draft_id)):
+            path.write_text(f'---\nnotion_id: "{page_id}"\n---\n', encoding="utf-8")
+        local.write_text("local", encoding="utf-8")
+        client = FakePruneClient(
+            [],
+            {},
+            {
+                archived_id: {"archived": True},
+                missing_id: None,
+                draft_id: {
+                    "archived": False,
+                    "properties": {"Status": {"status": {"name": "草稿"}}},
+                },
+            },
+        )
+
+        notion_sync.sync_articles(client, self.repo)
+        self.assertEqual(client.page_requests, [])
+        self.assertTrue(archived.exists())
+
+        plans = notion_sync.sync_articles(client, self.repo, prune=True, dry_run=True)
+        self.assertEqual([plan.state for plan in plans], ["delete"])
+        self.assertEqual(plans[0].path, archived)
+        self.assertTrue(archived.exists())
+
+        notion_sync.sync_articles(client, self.repo, prune=True)
+        self.assertFalse(archived.exists())
+        self.assertTrue(missing.exists())
+        self.assertTrue(draft.exists())
+        self.assertTrue(local.exists())
+
+    def test_get_page_returns_none_only_for_404(self):
+        client = notion_sync.NotionClient("token-not-recorded", self.page_id)
+
+        def fake_request(endpoint, payload=None):
+            raise notion_sync.NotionAPIError(404, "not found")
+
+        client._request = fake_request
+        self.assertIsNone(client.get_page(self.page_id))
 
     def test_env_file_parsing(self):
         env = self.temp / ".env.notion"
