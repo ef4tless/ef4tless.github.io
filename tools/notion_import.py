@@ -58,7 +58,7 @@ def normalize_date(value: str) -> tuple[str, str]:
     """Return (filename date, Chirpy datetime), defaulting to UTC+8."""
     match = re.fullmatch(
         r"(\d{4})-(\d{2})-(\d{2})"
-        r"(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?"
+        r"(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,6})?)?"
         r"(?:\s*(Z|[+-]\d{2}:?\d{2}))?)?",
         value.strip(),
     )
@@ -288,7 +288,9 @@ def yaml_string(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
-def render_post(metadata: dict[str, object], body: str) -> str:
+def render_post(
+    metadata: dict[str, object], body: str, extra_front_matter: list[str] | None = None
+) -> str:
     front_matter = [
         "---",
         f"title: {yaml_string(str(metadata['title']))}",
@@ -298,6 +300,8 @@ def render_post(metadata: dict[str, object], body: str) -> str:
     ]
     if metadata.get("description"):
         front_matter.append(f"description: {yaml_string(str(metadata['description']))}")
+    if extra_front_matter:
+        front_matter.extend(extra_front_matter)
     front_matter.extend(["---", "", ""])
     return "\n".join(front_matter) + body.lstrip("\n")
 

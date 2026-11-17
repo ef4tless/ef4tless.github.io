@@ -4,6 +4,7 @@ date: 2026-11-17 19:24:00 +0800
 categories: [随笔]
 tags: [Notion, Jekyll, 博客]
 description: "验证从 Notion 写作到 Jekyll 构建和 GitHub Pages 部署的完整流程。"
+notion_id: "41b888f9-4af3-8141-bdd5-c0f42fd4aa4e"
 pin: false
 ---
 

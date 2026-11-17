@@ -36,3 +36,6 @@ Thumbs.db
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Local Notion API credentials
+.env.notion
