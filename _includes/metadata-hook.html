@@ -1,0 +1,21 @@
+<!-- Clean up previously registered PWA Service Worker and stale offline caches -->
+{% unless site.pwa.enabled and site.pwa.cache.enabled %}
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        for (const reg of regs) {
+          reg.unregister();
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then((keys) => {
+        for (const key of keys) {
+          if (key.startsWith('chirpy-')) {
+            caches.delete(key);
+          }
+        }
+      });
+    }
+  </script>
+{% endunless %}
