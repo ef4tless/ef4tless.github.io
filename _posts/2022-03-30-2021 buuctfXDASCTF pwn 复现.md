@@ -8,7 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=6/
 pin: false
-published:
+published: false
 ---
 ## ticket
 

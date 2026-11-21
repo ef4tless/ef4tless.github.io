@@ -8,7 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=18/
 pin: false
-published:
+published: false
 ---
 
 这次本来musl能做出来的，脑子抽抽了都泄露堆地址了，泄露libc还卡半天。

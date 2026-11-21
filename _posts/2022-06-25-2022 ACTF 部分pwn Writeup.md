@@ -8,7 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=27/
 pin: false
-published:
+published: false
 ---
 
 ## b64echo

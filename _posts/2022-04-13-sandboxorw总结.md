@@ -8,7 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=10/
 pin: false
-published:
+published: false
 ---
 
 ## 沙盒绕过

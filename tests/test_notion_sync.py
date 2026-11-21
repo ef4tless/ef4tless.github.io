@@ -118,6 +118,7 @@ class NotionSyncTests(unittest.TestCase):
         rendered = post.read_text(encoding="utf-8")
         self.assertIn('title: "测试文章"', rendered)
         self.assertIn("date: 2026-11-17 19:00:00 +0800", rendered)
+        self.assertIn("permalink: /posts/id=1/", rendered)
         self.assertIn(f'notion_id: "{self.page_id}"', rendered)
         self.assertIn("Hello **Notion**", rendered)
         self.assertIn("## 正文", rendered)
@@ -280,6 +281,90 @@ class NotionSyncTests(unittest.TestCase):
         values = notion_sync.load_env_file(env)
         self.assertEqual(values["NOTION_TOKEN"], "secret-value")
         self.assertEqual(values["NOTION_DATABASE_ID"], "database-id")
+
+    def test_auto_increments_post_id_after_hidden_posts_without_slug(self):
+        old_post = self.repo / "_posts" / "2025-04-18-旧文章.md"
+        old_post.write_text(
+            "---\ntitle: 旧文章\npermalink: /posts/id=107/\npublished: false\n---\n\n旧内容\n",
+            encoding="utf-8",
+        )
+        first_id = self.page_id
+        second_id = "41b888f9-4af3-81a2-aac4-d40d6d16dc29"
+        page_later = {
+            "id": second_id,
+            "properties": {
+                "Title": {"title": [text("第二篇中文文章")]},
+                "Status": {"status": {"name": "待发布"}},
+                "Date": {"date": {"start": "2026-11-22"}},
+                "Categories": {"multi_select": []},
+                "Tags": {"multi_select": []},
+            },
+        }
+        page_earlier = {
+            "id": first_id,
+            "properties": {
+                "Title": {"title": [text("第一篇中文文章")]},
+                "Slug": {"rich_text": []},
+                "Status": {"status": {"name": "待发布"}},
+                "Date": {"date": {"start": "2026-11-21"}},
+                "Categories": {"multi_select": [{"name": "随笔"}]},
+                "Tags": {"multi_select": []},
+            },
+        }
+        trees = {
+            first_id: [
+                block(
+                    "img1",
+                    "image",
+                    type="file",
+                    file={"url": "https://files.notion.test/a.png?sig=1"},
+                    caption=[text("图一")],
+                )
+            ],
+            second_id: [block("p2", "paragraph", rich_text=[text("内容二")])],
+        }
+        client = FakeClient([page_later, page_earlier], trees)
+
+        def fake_download(url, destination):
+            destination.write_bytes(b"png")
+
+        plans = notion_sync.sync_articles(client, self.repo, downloader=fake_download)
+
+        post_108 = self.repo / "_posts" / "2026-11-21-id-108.md"
+        post_109 = self.repo / "_posts" / "2026-11-22-id-109.md"
+        self.assertTrue(post_108.exists())
+        self.assertTrue(post_109.exists())
+        text_108 = post_108.read_text(encoding="utf-8")
+        text_109 = post_109.read_text(encoding="utf-8")
+        self.assertIn("permalink: /posts/id=108/", text_108)
+        self.assertIn("![图一](/assets/img/posts/id-108/", text_108)
+        self.assertIn("permalink: /posts/id=109/", text_109)
+        self.assertEqual(sorted(p.permalink for p in plans), ["/posts/id=108/", "/posts/id=109/"])
+
+        # Re-syncing after changing the date preserves id=108 and cleans up old file
+        page_earlier["properties"]["Date"] = {"date": {"start": "2026-11-23"}}
+        plans_after = notion_sync.sync_articles(client, self.repo, downloader=fake_download)
+        moved_108 = self.repo / "_posts" / "2026-11-23-id-108.md"
+        self.assertFalse(post_108.exists())
+        self.assertTrue(moved_108.exists())
+        self.assertIn("permalink: /posts/id=108/", moved_108.read_text(encoding="utf-8"))
+        self.assertEqual(
+            {p.page_id: p.state for p in plans_after}[first_id],
+            "update",
+        )
+
+    def test_explicit_post_id_collision_fails(self):
+        old_post = self.repo / "_posts" / "2025-04-18-旧文章.md"
+        old_post.write_text(
+            "---\ntitle: 旧文章\npermalink: /posts/id=107/\npublished: false\n---\n\n旧内容\n",
+            encoding="utf-8",
+        )
+        p = page(self.page_id, slug="")
+        p["properties"]["Post ID"] = {"type": "number", "number": 107}
+        client = FakeClient([p], {self.page_id: [block("p1", "paragraph", rich_text=[text("冲突")])]})
+
+        with self.assertRaises(notion_sync.NotionImportError):
+            notion_sync.sync_articles(client, self.repo)
 
 
 if __name__ == "__main__":

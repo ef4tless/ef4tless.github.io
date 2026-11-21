@@ -1,6 +1,6 @@
 # ef4tless.github.io
 
-https://ef4tless.github.io
+https://pwnbye4l4.com
 
 ## 从 Notion 发布
 

@@ -8,7 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=40/
 pin: false
-published:
+published: false
 ---
 
 ## 百密一疏(限制字符可见shellcode)

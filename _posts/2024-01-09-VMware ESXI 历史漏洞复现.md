@@ -5,7 +5,7 @@ categories:
 tags: 
 permalink: /posts/id=78/
 pin: false
-published:
+published: false
 ---
 参考文章
 https://github.com/knownsec/KCon/blob/master/2023/vSphere%20%E6%94%BB%E9%98%B2%E6%8A%80%E6%B3%95%E5%88%86%E4%BA%AB.pdf

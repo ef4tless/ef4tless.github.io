@@ -25,6 +25,8 @@ import zipfile
 MAX_ARCHIVE_FILES = 2000
 MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+FRONT_MATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", re.S)
+PERMALINK_ID_RE = re.compile(r"(?m)^permalink:\s*[\"']?/posts/id=(\d+)/?[\"']?\s*$")
 IMAGE_RE = re.compile(
     r"(?P<prefix>!\[[^\]]*\]\(\s*)"
     r"(?P<target><[^>]+>|[^\s)]+)"
@@ -36,6 +38,8 @@ NOTION_ID_RE = re.compile(r"\s+[0-9a-fA-F]{32}$")
 PROPERTY_NAMES = {
     "title": "title",
     "slug": "slug",
+    "post id": "post_id",
+    "id": "post_id",
     "status": "status",
     "date": "date",
     "categories": "categories",
@@ -46,6 +50,61 @@ PROPERTY_NAMES = {
 
 class NotionImportError(Exception):
     """An input or import error that should be shown without a traceback."""
+
+
+def extract_front_matter(text: str) -> str:
+    match = FRONT_MATTER_RE.match(text)
+    return match.group(1) if match else ""
+
+
+def extract_post_id(text: str) -> int | None:
+    front_matter = extract_front_matter(text)
+    if not front_matter:
+        return None
+    match = PERMALINK_ID_RE.search(front_matter)
+    return int(match.group(1)) if match else None
+
+
+def parse_post_id(value: object, *, label: str = "Post ID") -> int:
+    if isinstance(value, bool):
+        raise NotionImportError(f"{label} 必须是正整数：{value!r}")
+    if isinstance(value, int):
+        number = value
+    elif isinstance(value, float) and value.is_integer():
+        number = int(value)
+    elif isinstance(value, str):
+        text = value.strip()
+        if not re.fullmatch(r"\d+", text):
+            raise NotionImportError(f"{label} 必须是正整数：{value!r}")
+        number = int(text)
+    else:
+        raise NotionImportError(f"{label} 必须是正整数：{value!r}")
+    if number < 1:
+        raise NotionImportError(f"{label} 必须大于 0：{value!r}")
+    return number
+
+
+def format_permalink(post_id: int) -> str:
+    return f"/posts/id={post_id}/"
+
+
+def scan_post_ids(repo_root: Path) -> dict[int, Path]:
+    """Scan existing posts (including published: false) for numeric /posts/id=N/ IDs."""
+    used: dict[int, Path] = {}
+    posts_dir = repo_root / "_posts"
+    if not posts_dir.is_dir():
+        return used
+    for path in sorted(posts_dir.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in (".md", ".markdown"):
+            continue
+        post_id = extract_post_id(path.read_text(encoding="utf-8"))
+        if post_id is not None:
+            used[post_id] = path
+    return used
+
+
+def next_post_id(used_ids: set[int]) -> int:
+    return max(used_ids, default=0) + 1
 
 
 def split_options(value: str | None) -> list[str]:
@@ -298,6 +357,8 @@ def render_post(
         "categories: " + json.dumps(metadata["categories"], ensure_ascii=False),
         "tags: " + json.dumps(metadata["tags"], ensure_ascii=False),
     ]
+    if metadata.get("permalink"):
+        front_matter.append(f"permalink: {metadata['permalink']}")
     if metadata.get("description"):
         front_matter.append(f"description: {yaml_string(str(metadata['description']))}")
     if extra_front_matter:
@@ -312,6 +373,7 @@ def import_archive(
     *,
     title: str | None = None,
     slug: str | None = None,
+    post_id: int | str | None = None,
     date: str | None = None,
     categories: str | None = None,
     tags: str | None = None,
@@ -341,6 +403,8 @@ def import_archive(
         for key, value in overrides.items():
             if value is not None:
                 metadata[key] = value.strip()
+        if post_id is not None:
+            metadata["post_id"] = str(post_id).strip()
         if categories is not None:
             metadata["categories"] = categories
         if tags is not None:
@@ -351,18 +415,40 @@ def import_archive(
             raise NotionImportError("文章状态仍为「草稿」；请先在 Notion 改为「待发布」。")
 
         final_title = str(metadata.get("title", "")).strip()
-        final_slug = str(metadata.get("slug", "")).strip()
+        raw_slug = str(metadata.get("slug", "")).strip()
+        raw_post_id = str(metadata.get("post_id", "")).strip()
         final_date = str(metadata.get("date", "")).strip()
         if not final_title:
             raise NotionImportError("缺少文章标题；请使用 --title 指定。")
-        if not SLUG_RE.fullmatch(final_slug):
+        if raw_slug and not SLUG_RE.fullmatch(raw_slug):
             raise NotionImportError(
-                "缺少有效 Slug；请使用 --slug 指定小写英文、数字和连字符，例如 my-first-post。"
+                f"Slug 无效：{raw_slug!r}；仅允许小写英文、数字和连字符，例如 my-first-post。"
             )
         if not final_date:
             raise NotionImportError("缺少发布日期；请使用 --date YYYY-MM-DD 指定。")
 
         filename_date, chirpy_date = normalize_date(final_date)
+        used_ids = scan_post_ids(repo_root)
+
+        provisional_path = (
+            repo_root / "_posts" / f"{filename_date}-{raw_slug}.md" if raw_slug else None
+        )
+        if raw_post_id:
+            final_post_id = parse_post_id(raw_post_id, label="Post ID")
+            owner = used_ids.get(final_post_id)
+            target_slug = raw_slug or f"id-{final_post_id}"
+            target_path = repo_root / "_posts" / f"{filename_date}-{target_slug}.md"
+            if owner is not None and not (force and owner == target_path):
+                raise NotionImportError(
+                    f"Post ID {final_post_id} 已被 {owner.name} 占用，请换一个编号。"
+                )
+        elif provisional_path and provisional_path.exists() and force:
+            existing_id = extract_post_id(provisional_path.read_text(encoding="utf-8"))
+            final_post_id = existing_id if existing_id is not None else next_post_id(set(used_ids))
+        else:
+            final_post_id = next_post_id(set(used_ids))
+
+        final_slug = raw_slug or f"id-{final_post_id}"
         post_path = repo_root / "_posts" / f"{filename_date}-{final_slug}.md"
         if post_path.exists() and not force:
             raise NotionImportError(f"文章已存在：{post_path}；如确认覆盖，请添加 --force。")
@@ -375,6 +461,7 @@ def import_archive(
             "date": chirpy_date,
             "categories": split_options(categories if categories is not None else metadata.get("categories")),
             "tags": split_options(tags if tags is not None else metadata.get("tags")),
+            "permalink": format_permalink(final_post_id),
             "description": str(metadata.get("description", "")).strip(),
         }
         rendered = render_post(final_metadata, rewritten_body)
@@ -399,7 +486,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("archive", type=Path, help="Notion 导出的 ZIP 文件")
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1], help=argparse.SUPPRESS)
     parser.add_argument("--title", help="文章标题（覆盖导出内容）")
-    parser.add_argument("--slug", help="小写英文短名称，例如 my-first-post")
+    parser.add_argument("--slug", help="可选：小写英文短名称（留空则自动使用 id-<编号>）")
+    parser.add_argument("--post-id", type=int, help="可选：指定文章数字 ID（留空则自动按最大编号 + 1 递增）")
     parser.add_argument("--date", help="发布日期，例如 2026-11-17")
     parser.add_argument("--categories", help="逗号分隔的分类，例如 安全研究,IoT")
     parser.add_argument("--tags", help="逗号分隔的标签，例如 Notion,Jekyll,博客")
@@ -417,6 +505,7 @@ def main() -> int:
             args.repo,
             title=args.title,
             slug=args.slug,
+            post_id=args.post_id,
             date=args.date,
             categories=args.categories,
             tags=args.tags,

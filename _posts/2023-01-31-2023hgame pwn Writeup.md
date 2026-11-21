@@ -8,7 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=53/
 pin: false
-published:
+published: false
 ---
 
 # week1

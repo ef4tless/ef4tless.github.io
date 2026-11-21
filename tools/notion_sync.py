@@ -388,7 +388,30 @@ class SyncPlan:
     path: Path
     content: str
     assets: list[Asset]
+    permalink: str = ""
+    previous_path: Path | None = None
     state: str = "unchanged"
+
+
+def extract_explicit_post_id(properties: dict, title: str) -> int | None:
+    for key in ("Post ID", "ID"):
+        prop = properties.get(key)
+        if not prop:
+            continue
+        prop_type = prop.get("type")
+        if prop_type == "number" or ("number" in prop and prop.get("number") is not None):
+            number = prop.get("number")
+            if number is not None:
+                return notion_import.parse_post_id(number, label=f"文章 {title!r} 的 {key}")
+        elif prop_type == "unique_id" or "unique_id" in prop:
+            number = (prop.get("unique_id") or {}).get("number")
+            if number is not None:
+                return notion_import.parse_post_id(number, label=f"文章 {title!r} 的 {key}")
+        elif prop_type == "rich_text" or "rich_text" in prop:
+            raw = plain_text(prop.get("rich_text")).strip()
+            if raw:
+                return notion_import.parse_post_id(raw, label=f"文章 {title!r} 的 {key}")
+    return None
 
 
 def page_metadata(page: dict) -> dict[str, object]:
@@ -401,7 +424,8 @@ def page_metadata(page: dict) -> dict[str, object]:
         return value
 
     title = plain_text(prop("Title").get("title")).strip()
-    slug = plain_text(prop("Slug").get("rich_text")).strip()
+    slug_property = properties.get("Slug")
+    slug = plain_text(slug_property.get("rich_text")).strip() if slug_property else ""
     status = (prop("Status").get("status") or {}).get("name", "")
     date = (prop("Date").get("date") or {}).get("start", "")
     categories = [item["name"] for item in prop("Categories").get("multi_select", [])]
@@ -411,14 +435,16 @@ def page_metadata(page: dict) -> dict[str, object]:
 
     if not title:
         raise NotionImportError(f"页面 {page.get('id')} 缺少 Title。")
-    if not notion_import.SLUG_RE.fullmatch(slug):
+    if slug and not notion_import.SLUG_RE.fullmatch(slug):
         raise NotionImportError(f"文章 {title!r} 的 Slug 无效：{slug!r}")
     if status not in READY_STATUSES:
         raise NotionImportError(f"文章 {title!r} 的状态不在同步范围内：{status!r}")
     filename_date, chirpy_date = notion_import.normalize_date(date)
+    explicit_post_id = extract_explicit_post_id(properties, title)
     return {
         "title": title,
         "slug": slug,
+        "post_id": explicit_post_id,
         "date": chirpy_date,
         "filename_date": filename_date,
         "categories": categories,
@@ -431,26 +457,109 @@ def existing_notion_id(path: Path) -> str | None:
     if not path.exists():
         return None
     text = path.read_text(encoding="utf-8")
-    match = re.search(r"(?m)^notion_id:\s*[\"']?([0-9a-fA-F-]{36})[\"']?\s*$", text)
+    front_matter = notion_import.extract_front_matter(text) or text
+    match = re.search(r"(?m)^notion_id:\s*[\"']?([0-9a-fA-F-]{36})[\"']?\s*$", front_matter)
     return match.group(1).lower() if match else None
 
 
+def scan_existing_posts(
+    repo_root: Path,
+) -> tuple[dict[int, Path], dict[str, tuple[Path, int | None]]]:
+    """Scan _posts/ for all numeric IDs (including hidden posts) and Notion-managed posts."""
+    used_ids: dict[int, Path] = {}
+    managed_by_notion_id: dict[str, tuple[Path, int | None]] = {}
+    posts_dir = repo_root / "_posts"
+    if not posts_dir.is_dir():
+        return used_ids, managed_by_notion_id
+    for path in sorted(posts_dir.iterdir()):
+        if not path.is_file() or path.suffix.lower() not in (".md", ".markdown"):
+            continue
+        text = path.read_text(encoding="utf-8")
+        post_id = notion_import.extract_post_id(text)
+        if post_id is not None:
+            used_ids[post_id] = path
+        notion_id = existing_notion_id(path)
+        if notion_id:
+            managed_by_notion_id[notion_id] = (path, post_id)
+    return used_ids, managed_by_notion_id
+
+
 def prepare_sync(client: NotionClient, repo_root: Path) -> list[SyncPlan]:
+    used_ids, managed_by_notion_id = scan_existing_posts(repo_root)
     pages = client.query_articles()
-    plans = []
-    seen_paths: dict[Path, str] = {}
+
+    active_items: list[tuple[dict, dict[str, object]]] = []
     for page in pages:
         status = (page.get("properties", {}).get("Status", {}).get("status") or {}).get("name")
         if status == "草稿":
             continue
-        metadata = page_metadata(page)
-        slug = str(metadata["slug"])
+        active_items.append((page, page_metadata(page)))
+
+    # Map numeric post_id -> (owner_key, local_path_or_none)
+    # owner_key is notion_id (lowercase) for managed posts or "local" for unmanaged posts.
+    owner_of_id: dict[int, tuple[str, Path | None]] = {}
+    managed_paths = {path: nid for nid, (path, _) in managed_by_notion_id.items()}
+    for pid, path in used_ids.items():
+        owner_of_id[pid] = (managed_paths.get(path, "local"), path)
+
+    assigned_ids: dict[str, int] = {}
+    unassigned: list[tuple[dict, dict[str, object]]] = []
+
+    for page, metadata in active_items:
+        nid = page["id"].lower()
+        existing_path, existing_pid = managed_by_notion_id.get(nid, (None, None))
+        explicit_pid = metadata["post_id"]
+        if isinstance(explicit_pid, int):
+            owner = owner_of_id.get(explicit_pid)
+            if owner is not None and owner[0] != nid:
+                conflict = owner[1].name if owner[1] is not None else owner[0]
+                raise NotionImportError(
+                    f"文章 {metadata['title']!r} 的 ID {explicit_pid} 已被 {conflict} 占用。"
+                )
+            if (
+                existing_pid is not None
+                and existing_pid != explicit_pid
+                and owner_of_id.get(existing_pid, (None, None))[0] == nid
+            ):
+                del owner_of_id[existing_pid]
+            assigned_ids[nid] = explicit_pid
+            owner_of_id[explicit_pid] = (nid, existing_path)
+        elif existing_pid is not None:
+            assigned_ids[nid] = existing_pid
+        else:
+            unassigned.append((page, metadata))
+
+    unassigned.sort(
+        key=lambda item: (
+            str(item[1]["filename_date"]),
+            str(item[1]["date"]),
+            item[0]["id"].lower(),
+        )
+    )
+    for page, _ in unassigned:
+        nid = page["id"].lower()
+        new_id = notion_import.next_post_id(set(owner_of_id))
+        assigned_ids[nid] = new_id
+        owner_of_id[new_id] = (nid, None)
+
+    plans = []
+    seen_paths: dict[Path, str] = {}
+    for page, metadata in active_items:
+        nid = page["id"].lower()
+        post_id = assigned_ids[nid]
+        slug = str(metadata["slug"]) or f"id-{post_id}"
+        permalink = notion_import.format_permalink(post_id)
+        metadata["permalink"] = permalink
+
         post_path = repo_root / "_posts" / f"{metadata['filename_date']}-{slug}.md"
         if post_path in seen_paths:
             raise NotionImportError(
                 f"多篇文章指向同一路径 {post_path}；请检查重复 Slug 或日期。"
             )
         seen_paths[post_path] = page["id"]
+
+        existing_path, _ = managed_by_notion_id.get(nid, (None, None))
+        previous_path = existing_path if existing_path and existing_path != post_path else None
 
         renderer = NotionRenderer(repo_root, slug)
         body = renderer.render(client.block_tree(page["id"]))
@@ -466,6 +575,8 @@ def prepare_sync(client: NotionClient, repo_root: Path) -> list[SyncPlan]:
                 path=post_path,
                 content=content,
                 assets=renderer.assets,
+                permalink=permalink,
+                previous_path=previous_path,
             )
         )
     return plans
@@ -539,13 +650,13 @@ def sync_articles(
 
     for plan in plans:
         if not plan.path.exists():
-            plan.state = "create"
+            plan.state = "update" if plan.previous_path else "create"
             continue
         current = plan.path.read_text(encoding="utf-8")
         owner = existing_notion_id(plan.path)
         if owner and owner != plan.page_id.lower():
             raise NotionImportError(f"{plan.path} 已属于另一篇 Notion 文章，停止覆盖。")
-        if current == plan.content:
+        if current == plan.content and not plan.previous_path:
             plan.state = "unchanged"
         elif owner is None and not force:
             raise NotionImportError(
@@ -595,6 +706,8 @@ def sync_articles(
             temporary = plan.path.with_name(plan.path.name + ".tmp")
             temporary.write_text(plan.content, encoding="utf-8")
             os.replace(temporary, plan.path)
+            if plan.previous_path and plan.previous_path != plan.path and plan.previous_path.exists():
+                plan.previous_path.unlink()
 
     return plans
 
@@ -644,7 +757,8 @@ def main() -> int:
         return 0
     labels = {"create": "新增", "update": "更新", "unchanged": "无变化", "delete": "删除"}
     for plan in plans:
-        print(f"[{labels[plan.state]}] {plan.title} → {plan.path}（图片 {len(plan.assets)}）")
+        link_info = f"{plan.permalink}，" if plan.permalink else ""
+        print(f"[{labels[plan.state]}] {plan.title} → {plan.path}（{link_info}图片 {len(plan.assets)}）")
     deletion_note = "完整对账，图片保留" if not args.no_prune else "已禁用清理，不删除本地文章"
     print(f"共 {len(plans)} 篇；{'仅检查，未写入' if args.dry_run else '同步完成'}。{deletion_note}。")
     return 0

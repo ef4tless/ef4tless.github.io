@@ -68,6 +68,7 @@ Description: 一篇摘要
         self.assertIn("date: 2026-11-17 00:00:00 +0800", rendered)
         self.assertIn('categories: ["随笔", "测试"]', rendered)
         self.assertIn('tags: ["Notion", "Jekyll"]', rendered)
+        self.assertIn("permalink: /posts/id=1/", rendered)
         self.assertIn('description: "一篇摘要"', rendered)
         self.assertIn(
             '![截图](/assets/img/posts/my-test-post/screen-shot.png "图片标题")',
@@ -190,6 +191,30 @@ Description: 一篇摘要
         self.assertEqual(assets, [])
         self.assertIn(f"![remote]({url})", rendered)
         self.assertTrue(post.exists())
+
+    def test_auto_assigns_next_post_id_without_slug(self) -> None:
+        existing = self.repo / "_posts" / "2025-04-18-old.md"
+        existing.write_text(
+            "---\ntitle: old\npermalink: /posts/id=107/\npublished: false\n---\n\nold\n",
+            encoding="utf-8",
+        )
+        self.make_archive({"中文标题.md": "# 中文标题\n\nDate: 2026-11-21\n\n正文。\n"})
+
+        post, _, rendered = notion_import.import_archive(self.archive, self.repo)
+
+        self.assertEqual(post.name, "2026-11-21-id-108.md")
+        self.assertIn("permalink: /posts/id=108/", rendered)
+
+    def test_rejects_duplicate_explicit_post_id(self) -> None:
+        existing = self.repo / "_posts" / "2025-04-18-old.md"
+        existing.write_text(
+            "---\ntitle: old\npermalink: /posts/id=107/\npublished: false\n---\n\nold\n",
+            encoding="utf-8",
+        )
+        self.make_archive({"Post.md": "# Title\n\nDate: 2026-11-21\n\n正文。\n"})
+
+        with self.assertRaises(notion_import.NotionImportError):
+            notion_import.import_archive(self.archive, self.repo, post_id=107)
 
 
 if __name__ == "__main__":

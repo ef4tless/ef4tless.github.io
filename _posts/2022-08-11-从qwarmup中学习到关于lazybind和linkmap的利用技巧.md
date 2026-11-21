@@ -8,7 +8,7 @@ tags:
   - ctf
 permalink: /posts/id=41/
 pin: false
-published:
+published: false
 ---
 
 ## 适用场景
